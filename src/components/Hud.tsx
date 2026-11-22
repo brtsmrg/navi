@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Square, Volume2, VolumeX, Settings as Cog, TriangleAlert } from 'lucide-react';
 import { formatDistance, formatSpeed, speedUnit, type Note } from '@/core';
 import { useApp, useRideStore } from '@/lib/store';
-import { stopRide } from '@/ride/controller';
+import { stopRide, testSound } from '@/ride/controller';
 import { cn } from '@/lib/cn';
 import { CallLabel, TurnText } from './Chip';
 import { Glyph } from './Glyph';
@@ -80,6 +80,9 @@ export function Hud() {
               <TriangleAlert size={16} className="mt-0.5 shrink-0" /> {audioNote}
             </p>
           )}
+          <button onClick={testSound} className="pointer-events-auto mt-2 flex min-h-11 items-center gap-2 rounded-full bg-raise px-4 text-sm font-medium text-ink ring-1 ring-line">
+            <Volume2 size={16} /> Test sound
+          </button>
           {offRoute && <p className="mt-2 text-sm font-medium text-sev2">Off the planned route. Notes resume when you rejoin it.</p>}
           {gpsError && <p className="mt-2 text-sm text-sev3">{gpsError}</p>}
         </div>

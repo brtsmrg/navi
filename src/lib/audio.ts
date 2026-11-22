@@ -27,6 +27,13 @@ function silentWavUri(): string {
 
 export function unlockAudio(): void {
   try {
+    // iOS 16.4+: play through the speaker even with the silent switch on
+    const nav = navigator as unknown as { audioSession?: { type: string } };
+    if (nav.audioSession) nav.audioSession.type = 'playback';
+  } catch {
+    /* older browsers: the looped silent clip below does the same job */
+  }
+  try {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (AC && !ctx) ctx = new AC();
     void ctx?.resume();

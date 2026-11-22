@@ -1,6 +1,6 @@
 import { CallScheduler, RouteTracker, gapText, speedProfile, type Call, type Stage } from '@/core';
 import { useApp, useRideStore } from '@/lib/store';
-import { primeSpeech, say, stopSpeaking, speechSupported, waitForVoices } from '@/lib/speech';
+import { listVoices, primeSpeech, say, stopSpeaking, speechSupported, waitForVoices } from '@/lib/speech';
 import { cue, releaseAudio, unlockAudio } from '@/lib/audio';
 import { keepAwake } from '@/lib/wakeLock';
 
@@ -58,20 +58,42 @@ function schedulerOptions() {
   };
 }
 
-/** Immediate audible proof that sound works, and a plain note when this device has no voice. */
+const NO_SOUND =
+  'No sound heard? Turn the silent switch (side of the iPhone) off, turn the volume up, then tap Test sound. The turn is always shown on screen.';
+
+/** Immediate audible proof that sound works, and a plain note when this device has no voice. Runs inside the Start tap. */
 function announceReady() {
   const { settings } = useApp.getState();
   if (settings.muted) return;
   if (settings.cues) cue(undefined, 4, settings.volume);
-  void waitForVoices().then((voices) => {
-    if (!useRideStore.getState().active) return;
-    if (!speechSupported() || voices.length === 0) {
-      useRideStore.setState({ audioNote: 'This device has no voice installed. You will hear beeps (left ear = left turn) and see the turn on screen.' });
-      return;
-    }
+  let heard = false;
+  const speakIt = () => {
     const st = useApp.getState().settings;
-    say('Navi is on.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
-  });
+    say('Navi is on.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, onStart: () => (heard = true) });
+  };
+  // speak straight away while the tap is still "live" (iOS requires it); fall back to waiting for voices
+  if (speechSupported() && listVoices().length > 0) speakIt();
+  else
+    void waitForVoices().then((voices) => {
+      if (!useRideStore.getState().active) return;
+      if (!speechSupported() || voices.length === 0) {
+        useRideStore.setState({ audioNote: 'This device has no voice installed. You will hear beeps (left ear = left turn) and see the turn on screen.' });
+        return;
+      }
+      speakIt();
+    });
+  setTimeout(() => {
+    if (useRideStore.getState().active && !heard && speechSupported() && !useRideStore.getState().audioNote) useRideStore.setState({ audioNote: NO_SOUND });
+  }, 3500);
+}
+
+/** Wired to the "Test sound" button: a beep in each ear, then a spoken line. Must run inside a tap. */
+export function testSound(): void {
+  unlockAudio();
+  const st = useApp.getState().settings;
+  cue('L', 3, st.volume);
+  setTimeout(() => cue('R', 3, st.volume), 450);
+  setTimeout(() => say('Sound check. Left three, right three.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true, onStart: () => useRideStore.setState({ audioNote: null }) }), 950);
 }
 
 export interface RideOptions {
@@ -85,7 +107,7 @@ export function startRide(stage: Stage, o: RideOptions): void {
   stopRide();
   stageRef = stage;
   unlockAudio(); // browsers only allow sound after a tap, so this runs inside the tap handler
-  primeSpeech();
+  if (!listVoices().length) primeSpeech();
   const tracker = new RouteTracker(stage.route.coords);
   scheduler = new CallScheduler(stage.notes, schedulerOptions());
   scheduler.reset(0);

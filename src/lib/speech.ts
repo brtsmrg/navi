@@ -49,7 +49,7 @@ export const lastSpeechError = () => lastError;
 export let live: SpeechSynthesisUtterance | undefined;
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
-export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void }): void {
+export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void; onStart?: () => void }): void {
   if (!speechSupported()) return;
   const synth = window.speechSynthesis;
   clearTimeout(speakTimer);
@@ -69,6 +69,7 @@ export function say(text: string, o: { rate: number; voiceURI: string; volume?: 
     u.onerror = (e) => {
       if (e.error !== 'interrupted' && e.error !== 'canceled') lastError = e.error;
     };
+    u.onstart = () => o.onStart?.();
     u.onend = () => o.onDone?.();
     live = u;
     synth.resume(); // Chrome can be left paused after a cancel
