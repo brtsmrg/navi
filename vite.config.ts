@@ -30,7 +30,18 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { navigateFallback: 'index.html', globPatterns: ['**/*.{js,css,html,svg,png,woff2}'] },
+      workbox: {
+        navigateFallback: 'index.html',
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // map tiles you have already looked at keep working with no signal (the style and tiles are public OpenFreeMap files)
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }: { url: URL }) => url.origin === 'https://tiles.openfreemap.org',
+            handler: 'CacheFirst',
+            options: { cacheName: 'navi-map-tiles', expiration: { maxEntries: 1500, maxAgeSeconds: 60 * 60 * 24 * 30 }, cacheableResponse: { statuses: [0, 200] } },
+          },
+        ],
+      },
     }),
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
