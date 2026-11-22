@@ -34,6 +34,7 @@ export default defineConfig({
     }),
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  define: { __BUILD__: JSON.stringify(`${(process.env.GITHUB_SHA ?? 'local').slice(0, 7)} ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`) },
   build: { target: 'es2022', sourcemap: false },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },
 });

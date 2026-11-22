@@ -23,7 +23,7 @@ if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo UI overhaul: audio fixes, full-word turn cards, Saved/Favourites/History, route options
+> "%TEMP%\navi-update-msg.txt" echo Audio fix: speak inside the tap on iPhone, sound report in Settings
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7

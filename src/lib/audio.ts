@@ -97,3 +97,12 @@ export function testCues(volume: number): void {
   tone(660, t + 0.35, 0.18, 1, 0.4 * volume);
   tone(880, t + 0.7, 0.18, 0, 0.4 * volume);
 }
+
+/** Plain-words state of the beep engine, for the Settings sound report. */
+export function audioReport(): { ctx: string; session: string } {
+  const nav = navigator as unknown as { audioSession?: { type: string } };
+  return {
+    ctx: ctx ? (ctx.state === 'running' ? 'running' : `${ctx.state} (tap Test beeps)`) : 'not started yet (tap Test beeps)',
+    session: nav.audioSession ? `supported (${nav.audioSession.type})` : 'not supported, using a silent clip instead',
+  };
+}

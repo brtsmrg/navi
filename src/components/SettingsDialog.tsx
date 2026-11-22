@@ -4,7 +4,7 @@ import { DIALECTS, type DialectId, type DriverProfile, type UnitSystem } from '@
 import { useApp, type Readout } from '@/lib/store';
 import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
-import { testCues, unlockAudio } from '@/lib/audio';
+import { audioReport, testCues, unlockAudio } from '@/lib/audio';
 import { Button, Range, Segmented, Sheet, Toggle } from './ui';
 
 const PROFILES: { value: DriverProfile; label: string; blurb: string }[] = [
@@ -25,6 +25,24 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h3 className="font-display text-xl font-semibold">{title}</h3>
       {children}
     </section>
+  );
+}
+
+/** What this phone says about sound, so a silent test can be explained instead of guessed at. */
+function SoundReport({ voices, tick }: { voices: number; tick: string }) {
+  const r = audioReport();
+  const lines = [
+    `Voice engine: ${speechSupported() ? `yes, ${voices} English voice${voices === 1 ? '' : 's'} listed` : 'not available'}`,
+    `Beep engine: ${r.ctx}`,
+    `Silent-switch override: ${r.session}`,
+    `Last voice error: ${lastSpeechError() || 'none'}`,
+    `Build: ${__BUILD__}`,
+  ];
+  return (
+    <details className="rounded-xl bg-bg px-3 py-2 text-sm text-mute" data-tick={tick}>
+      <summary className="min-h-8 cursor-pointer py-1 text-ink">Sound report</summary>
+      <ul className="space-y-1 pb-1">{lines.map((l) => <li key={l}>{l}</li>)}</ul>
+    </details>
   );
 }
 
@@ -52,8 +70,8 @@ export function SettingsDialog() {
   const testVoice = () => {
     unlockAudio(); // inside the tap, so iOS and Chrome allow sound
     setVoiceMsg('');
-    if (!speechSupported() || voices.length === 0) {
-      setVoiceMsg('This device has no voice installed. Use the beep test, or try Safari (iPhone) or Chrome.');
+    if (!speechSupported()) {
+      setVoiceMsg('This browser cannot speak. Use the beep test, or try Safari (iPhone) or Chrome.');
       return;
     }
     say(sample, { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
@@ -98,6 +116,7 @@ export function SettingsDialog() {
             <Button variant="raise" onClick={testBeeps}>Test beeps</Button>
           </div>
           {voiceMsg && <p role="status" className="text-sm text-sev3">{voiceMsg}</p>}
+          <SoundReport voices={voices.length} tick={voiceMsg} />
           {speechSupported() && (
             <>
               <select aria-label="Voice" value={st.voiceURI} onChange={(e) => set({ voiceURI: e.target.value })} className="min-h-12 w-full rounded-xl bg-bg px-3 text-[16px]">

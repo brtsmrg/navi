@@ -1,6 +1,6 @@
 import { CallScheduler, RouteTracker, gapText, speedProfile, type Call, type Stage } from '@/core';
 import { useApp, useRideStore } from '@/lib/store';
-import { listVoices, primeSpeech, say, stopSpeaking, speechSupported, waitForVoices } from '@/lib/speech';
+import { listVoices, primeSpeech, say, stopSpeaking, speechSupported } from '@/lib/speech';
 import { cue, releaseAudio, unlockAudio } from '@/lib/audio';
 import { keepAwake } from '@/lib/wakeLock';
 
@@ -71,17 +71,10 @@ function announceReady() {
     const st = useApp.getState().settings;
     say('Navi is on.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, onStart: () => (heard = true) });
   };
-  // speak straight away while the tap is still "live" (iOS requires it); fall back to waiting for voices
-  if (speechSupported() && listVoices().length > 0) speakIt();
-  else
-    void waitForVoices().then((voices) => {
-      if (!useRideStore.getState().active) return;
-      if (!speechSupported() || voices.length === 0) {
-        useRideStore.setState({ audioNote: 'This device has no voice installed. You will hear beeps (left ear = left turn) and see the turn on screen.' });
-        return;
-      }
-      speakIt();
-    });
+  // Speak inside the tap, always. iOS lists its voices late (often empty on first tap) and only lets
+  // the first utterance start from a gesture, so waiting for voices would lose the permission.
+  if (speechSupported()) speakIt();
+  else useRideStore.setState({ audioNote: 'This browser cannot speak. You will hear beeps (left ear = left turn) and see the turn on screen.' });
   setTimeout(() => {
     if (useRideStore.getState().active && !heard && speechSupported() && !useRideStore.getState().audioNote) useRideStore.setState({ audioNote: NO_SOUND });
   }, 3500);
