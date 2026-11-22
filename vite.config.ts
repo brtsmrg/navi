@@ -15,7 +15,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Navi',
+        name: 'Navi Rally',
         short_name: 'Navi',
         description: 'Rally co-driver pacenotes for any road.',
         theme_color: '#000000',
