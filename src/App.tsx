@@ -4,6 +4,7 @@ import { Hud } from '@/components/Hud';
 import { MapView } from '@/components/MapView';
 import { PlanPanel } from '@/components/PlanPanel';
 import { SettingsDialog } from '@/components/SettingsDialog';
+import { Splash } from '@/components/Splash';
 import { planWaypoints } from '@/lib/plan';
 import { useApp, useRideStore } from '@/lib/store';
 import { parseShareHash } from '@/providers/share';
@@ -36,6 +37,7 @@ export default function App() {
         </>
       )}
       <SettingsDialog />
+      <Splash />
     </div>
   );
 }

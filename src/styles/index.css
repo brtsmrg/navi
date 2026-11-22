@@ -82,3 +82,29 @@ body,
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Launch splash: outlined Navi wipes in, the i-dot swings in with the drift and lands. */
+@keyframes navi-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes navi-dot {
+  0% { transform: translate(-1900px, 170px) rotate(-34deg); opacity: 1; }
+  62% { transform: translate(70px, -26px) rotate(-3deg); }
+  80% { transform: translate(-14px, 6px) rotate(1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+}
+@keyframes navi-streak {
+  0% { opacity: 1; }
+  62% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+@keyframes navi-fade-out {
+  to { opacity: 0; visibility: hidden; }
+}
+.navi-splash {
+  animation: navi-fade-out 380ms ease-in 2300ms forwards;
+}
+.navi-splash .navi-text { animation: navi-wipe 700ms cubic-bezier(0.3, 0, 0.2, 1) 150ms both; }
+.navi-splash .navi-dot { animation: navi-dot 1150ms cubic-bezier(0.16, 0.7, 0.3, 1) 650ms both; }
+.navi-splash .navi-streak { animation: navi-streak 1150ms linear 650ms both; }

@@ -10,7 +10,7 @@ async def main():
         b = await p.chromium.launch()
         for name, size in [("icon-192.png", 192), ("icon-512.png", 512), ("apple-touch-icon.png", 180)]:
             pg = await b.new_page(viewport={"width": size, "height": size})
-            await pg.set_content(f"<style>html,body{{margin:0;background:#0b0d10}}svg{{display:block;width:{size}px;height:{size}px}}</style>{SVG}")
+            await pg.set_content(f"<style>html,body{{margin:0;background:#000}}svg{{display:block;width:{size}px;height:{size}px}}</style>{SVG}")
             await pg.screenshot(path=str(ROOT / "public" / name))
             await pg.close()
         await b.close()
