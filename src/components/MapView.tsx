@@ -1,0 +1,156 @@
+import { useEffect, useRef } from 'react';
+import { LngLatBounds, Map as MapGL, setWorkerUrl, type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+import type { Feature, FeatureCollection } from 'geojson';
+import { RouteTracker, type Stage } from '@/core';
+import { CONFIG } from '@/providers/config';
+import { loadStyle } from '@/lib/mapStyle';
+import { SEV_COLOR } from '@/lib/cn';
+import { useApp, useRideStore } from '@/lib/store';
+
+// Vite fingerprints the worker file; tell MapLibre where it ended up.
+setWorkerUrl(workerUrl);
+
+const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] };
+
+function stageGeo(stage: Stage) {
+  const tracker = new RouteTracker(stage.route.coords);
+  const line: FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: stage.route.coords } }],
+  };
+  const hot: Feature[] = [];
+  const pts: Feature[] = [];
+  for (const n of stage.notes) {
+    if (!n.severity) continue;
+    const coords: [number, number][] = [];
+    const end = Math.max(n.sEnd, n.s + 10);
+    for (let s = n.s; s < end; s += 8) coords.push(tracker.pointAt(s).lngLat);
+    coords.push(tracker.pointAt(end).lngLat);
+    hot.push({
+      type: 'Feature',
+      properties: { color: SEV_COLOR[n.severity], sev: n.severity },
+      geometry: { type: 'LineString', coordinates: coords },
+    });
+    pts.push({
+      type: 'Feature',
+      properties: { color: SEV_COLOR[n.severity], r: 8 - n.severity },
+      geometry: { type: 'Point', coordinates: tracker.pointAt(n.s).lngLat },
+    });
+  }
+  return {
+    line,
+    hot: { type: 'FeatureCollection', features: hot } as FeatureCollection,
+    pts: { type: 'FeatureCollection', features: pts } as FeatureCollection,
+  };
+}
+
+function fitToStage(m: MapGL, stage: Stage | null) {
+  if (!stage || stage.route.coords.length < 2) return;
+  const b = new LngLatBounds();
+  stage.route.coords.forEach((c) => b.extend(c));
+  m.fitBounds(b, { padding: { top: 60, left: 40, right: 40, bottom: window.innerHeight * 0.5 }, duration: 600, maxZoom: 16 });
+}
+
+export function MapView() {
+  const el = useRef<HTMLDivElement>(null);
+  const map = useRef<MapGL | null>(null);
+  const ready = useRef(false);
+  const stage = useApp((s) => s.stage);
+  const active = useRideStore((s) => s.active);
+
+  useEffect(() => {
+    if (!el.current) return;
+    const ctl = new AbortController();
+    const container = el.current;
+    let m: MapGL | undefined;
+    // Load the style first, then build the map: swapping styles on a live map can skip the "style.load" event.
+    void loadStyle(CONFIG.mapStyle, ctl.signal).then((style) => {
+      if (ctl.signal.aborted) return;
+      m = new MapGL({
+        container,
+        style: style as StyleSpecification,
+        center: [-75.7, 45.42],
+        zoom: 9,
+        attributionControl: { compact: true },
+        maxPitch: 70,
+      });
+      map.current = m;
+      m.touchZoomRotate.disableRotation();
+      const map1 = m;
+      const push = () => {
+        if (!ready.current) return;
+        const st = useApp.getState().stage;
+        const g = st ? stageGeo(st) : { line: EMPTY, hot: EMPTY, pts: EMPTY };
+        (map1.getSource('line') as GeoJSONSource).setData(g.line);
+        (map1.getSource('hot') as GeoJSONSource).setData(g.hot);
+        (map1.getSource('pts') as GeoJSONSource).setData(g.pts);
+      };
+      (map1 as unknown as { _push: () => void })._push = push;
+      map1.on('load', () => {
+        for (const id of ['line', 'hot', 'pts', 'me']) map1.addSource(id, { type: 'geojson', data: EMPTY });
+        const round = { 'line-cap': 'round', 'line-join': 'round' } as const;
+        map1.addLayer({ id: 'route-casing', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#05070a', 'line-width': 11 } });
+        map1.addLayer({ id: 'route', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#e9edf2', 'line-width': 5, 'line-opacity': 0.85 } });
+        map1.addLayer({ id: 'route-hot', type: 'line', source: 'hot', layout: round, paint: { 'line-color': ['get', 'color'], 'line-width': 6 } });
+        map1.addLayer({ id: 'notes', type: 'circle', source: 'pts', paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['get', 'r'], 'circle-stroke-color': '#05070a', 'circle-stroke-width': 2 } });
+        map1.addLayer({ id: 'me-halo', type: 'circle', source: 'me', paint: { 'circle-color': '#56d7e0', 'circle-opacity': 0.25, 'circle-radius': 18 } });
+        map1.addLayer({ id: 'me', type: 'circle', source: 'me', paint: { 'circle-color': '#56d7e0', 'circle-radius': 7, 'circle-stroke-color': '#0b0d10', 'circle-stroke-width': 3 } });
+        ready.current = true;
+        push();
+        fitToStage(map1, useApp.getState().stage);
+      });
+    });
+    return () => {
+      ctl.abort();
+      ready.current = false;
+      m?.remove();
+      map.current = null;
+    };
+  }, []);
+
+  // route changes
+  useEffect(() => {
+    const m = map.current as (MapGL & { _push?: () => void }) | null;
+    if (!m || !ready.current) return;
+    m._push?.();
+    fitToStage(m, stage);
+  }, [stage]);
+
+  // live position + follow camera
+  useEffect(() => {
+    return useRideStore.subscribe((r) => {
+      const m = map.current;
+      if (!m || !ready.current) return;
+      const src = m.getSource('me') as GeoJSONSource | undefined;
+      if (!src) return;
+      if (!r.active || !r.lngLat) {
+        src.setData(EMPTY);
+        return;
+      }
+      src.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: r.lngLat } });
+      const kmh = r.v * 3.6;
+      m.easeTo({
+        center: r.lngLat,
+        bearing: r.bearing,
+        pitch: 55,
+        zoom: Math.max(13.5, 17 - kmh / 45),
+        duration: 400,
+        easing: (t) => t,
+        padding: { top: Math.round(window.innerHeight * 0.6), bottom: 0, left: 0, right: 0 },
+      });
+    });
+  }, []);
+
+  // leaving ride: flatten the camera
+  useEffect(() => {
+    if (!active) map.current?.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 400 });
+  }, [active]);
+
+  // maplibre-gl.css sets position:relative on its container, so size it from a wrapper instead.
+  return (
+    <div className="absolute inset-0">
+      <div ref={el} className="h-full w-full" role="application" aria-label="Map" />
+    </div>
+  );
+}

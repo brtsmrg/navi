@@ -1,0 +1,1 @@
+Prepare a mobile test build: run `npm run verify`, `npm run cap:android` and `npm run cap:ios`, confirm both native projects generate and `scripts/native-patch.mjs` reports patched or unchanged, then tell the user which GitHub Actions workflow to run (Android test APK, iPhone test IPA) and where the artifact appears. Do not claim a native build passed unless a CI run says so.

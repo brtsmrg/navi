@@ -1,0 +1,84 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource/barlow-condensed/500.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, sans-serif;
+
+  --color-bg: #0b0d10;
+  --color-panel: #12161b;
+  --color-raise: #1a2027;
+  --color-line: #262e37;
+  --color-ink: #e9edf2;
+  --color-mute: #8b96a4;
+  --color-dirl: #56d7e0;
+  --color-dirr: #ffb54a;
+  --color-go: #7fd6a1;
+  --color-sev1: #ff3b30;
+  --color-sev2: #ff7a2b;
+  --color-sev3: #ffb02e;
+  --color-sev4: #e9d84a;
+  --color-sev5: #7fd6a1;
+  --color-sev6: #5f9bb3;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-dirl);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.maplibregl-ctrl-attrib {
+  background: rgb(11 13 16 / 0.7) !important;
+  color: var(--color-mute) !important;
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-mute) !important;
+}
+
+.safe-b {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.safe-t {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.call-in {
+  animation: rise 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

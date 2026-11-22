@@ -1,0 +1,38 @@
+# Builds an UNSIGNED iPhone app (.ipa) on a free GitHub macOS runner.
+# It cannot be installed as-is: sign and install it on your own phone with SideStore, AltStore or Sideloadly
+# using your free Apple ID (apps last 7 days, up to 3 at a time). See docs/MOBILE.md.
+name: iPhone test IPA (unsigned)
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  ipa:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci
+      - run: npm run cap:ios
+      - name: Build for device without signing
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+      - name: Package IPA
+        run: |
+          mkdir -p Payload out
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qr out/Navi-unsigned.ipa Payload
+          shasum -a 256 out/Navi-unsigned.ipa | tee out/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Navi-iphone-unsigned
+          path: out/
+          if-no-files-found: error

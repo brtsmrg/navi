@@ -1,0 +1,1 @@
+Run `npm run verify`. If anything fails, fix the cause (not the test), rerun, and report each stage (typecheck, lint, tests, build) with its result. Then run `npm run e2e` and look at the screenshots in /tmp/shots.
