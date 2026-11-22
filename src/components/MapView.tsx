@@ -8,6 +8,7 @@ import { loadStyle } from '@/lib/mapStyle';
 import { SEV_COLOR } from '@/lib/cn';
 import { useApp, useRideStore } from '@/lib/store';
 import { dropPin } from '@/lib/flow';
+import { showProblem } from '@/lib/errorBanner';
 
 // Vite fingerprints the worker file; tell MapLibre where it ended up.
 setWorkerUrl(workerUrl);
@@ -66,8 +67,8 @@ export function MapView() {
     const container = el.current;
     let m: MapGL | undefined;
     // Load the style first, then build the map: swapping styles on a live map can skip the "style.load" event.
-    void loadStyle(CONFIG.mapStyle, ctl.signal).then((style) => {
-      if (ctl.signal.aborted) return;
+    void loadStyle(CONFIG.mapStyle, ctl.signal).catch((e) => { if (!ctl.signal.aborted) showProblem('map style', e); return null; }).then((style) => {
+      if (!style || ctl.signal.aborted) return;
       m = new MapGL({
         container,
         style: style as StyleSpecification,
@@ -115,6 +116,11 @@ export function MapView() {
         pressTimer = setTimeout(() => drop(e.lngLat), 650);
       });
       for (const ev of ['touchmove', 'touchend', 'touchcancel', 'movestart', 'zoomstart'] as const) map1.on(ev, cancel);
+      let lastErr = '';
+      map1.on('error', (e) => (lastErr = e.error?.message ?? 'unknown map error'));
+      setTimeout(() => {
+        if (!ready.current && !ctl.signal.aborted) showProblem('map', new Error(`the map did not finish loading. ${lastErr}`));
+      }, 10000);
       map1.on('load', () => {
         for (const id of ['line', 'hot', 'pts', 'me', 'pins']) map1.addSource(id, { type: 'geojson', data: EMPTY });
         const round = { 'line-cap': 'round', 'line-join': 'round' } as const;
