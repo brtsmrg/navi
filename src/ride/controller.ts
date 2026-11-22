@@ -172,7 +172,8 @@ export function startRide(stage: Stage, o: RideOptions): void {
       const p = tracker.pointAt(snap.s);
       useRideStore.setState({
         s: snap.s, v: vSmooth, lngLat: [lng, lat], bearing: heading ?? p.bearingDeg,
-        offRoute: offSince > 0 && t - offSince > 5000, gpsError: null,
+        offRoute: offSince > 0 && t - offSince > 5000,
+        gpsError: snap.offsetM > 2000 ? `You are ${(snap.offsetM / 1000).toFixed(snap.offsetM > 20000 ? 0 : 1)} km from this road, so there is nothing to call yet. Stop, then tap Watch a demo drive to hear how Navi sounds.` : null,
       });
       handle(snap.s, vSmooth, t);
     },

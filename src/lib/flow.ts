@@ -114,3 +114,19 @@ export async function dropPin(at: [number, number]): Promise<void> {
   const place = await reversePlace(at);
   await chooseDestination(place);
 }
+
+/** A real, famous twisty road (US 129, "Tail of the Dragon") routed by the same router as any trip. Runs anywhere, no GPS needed. */
+export const SAMPLE_FROM: Place = { id: 'sample-a', title: 'Deals Gap, North Carolina', subtitle: 'Tail of the Dragon, south end', lngLat: [-83.9327, 35.4686] };
+export const SAMPLE_TO: Place = { id: 'sample-b', title: 'Tabcat Creek, North Carolina', subtitle: 'Tail of the Dragon, north end', lngLat: [-83.9935, 35.5207] };
+
+export async function loadSampleRoad(): Promise<void> {
+  const st = useApp.getState();
+  st.setStage(null);
+  st.setTripId(null);
+  st.setVia([]);
+  st.setFrom(SAMPLE_FROM);
+  st.setTo(SAMPLE_TO);
+  st.setTab('explore');
+  st.setPlan({ err: '' });
+  await planRoute();
+}

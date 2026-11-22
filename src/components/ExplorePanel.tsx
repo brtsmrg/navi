@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { Bookmark, Briefcase, ChevronDown, ChevronLeft, Clock, Coffee, Fuel, Home, MapPin, ParkingSquare, Pencil, Play, Plus, Share2, Star, Upload, UtensilsCrossed, Wand2, X, Zap } from 'lucide-react';
-import { demoStage, generateStage, type Stage } from '@/core';
+import { generateStage, type Stage } from '@/core';
 import { parseGpx } from '@/providers/gpx';
 import { buildShareUrl } from '@/providers/share';
-import { chooseDestination, clearRoute, fmtArrival, fmtDistance, fmtDuration, locateHere, planRoute } from '@/lib/flow';
+import { chooseDestination, clearRoute, loadSampleRoad, SAMPLE_FROM, fmtArrival, fmtDistance, fmtDuration, locateHere, planRoute } from '@/lib/flow';
 import { useLibrary } from '@/lib/library';
 import { useApp } from '@/lib/store';
 import { cn, SEV_COLOR } from '@/lib/cn';
@@ -178,8 +178,8 @@ function HomeView() {
       <section>
         <h2 className="mb-2 px-1 font-display text-xl font-semibold text-mute">No destination yet?</h2>
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="raise" onClick={() => setStage(generateStage(demoStage()))}>
-            <Wand2 size={18} /> Try a demo road
+          <Button variant="raise" onClick={() => void loadSampleRoad()}>
+            <Wand2 size={18} /> Try a real twisty road
           </Button>
           <Button variant="raise" onClick={() => file.current?.click()}>
             <Upload size={18} /> Load a GPX file
@@ -258,6 +258,7 @@ function RouteView() {
   if (!stage) return null;
 
   const trip = trips.find((t) => t.id === tripId);
+  const isDemoRoad = from?.id === SAMPLE_FROM.id;
   const isFav = to ? favs.some((f) => f.place.id === to.id || (Math.abs(f.place.lngLat[0] - to.lngLat[0]) < 1e-4 && Math.abs(f.place.lngLat[1] - to.lngLat[1]) < 1e-4)) : false;
   const guarded = (go: () => void) => (settings.safetyAccepted ? go() : setGate(() => go));
   const go = (kind: 'gps' | 'demo') =>
@@ -301,24 +302,35 @@ function RouteView() {
       {plan.busy && <p className="rounded-xl bg-bg p-3 text-sm text-mute">Reading the road…</p>}
       <StatsBlock stage={stage} />
 
-      <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-        <Button variant="primary" className="bg-go text-bg hover:bg-go/90" onClick={() => go('gps')}>
-          <Play size={18} fill="currentColor" /> Start with GPS
-        </Button>
-        {trip && (
-          <Button variant="raise" aria-label={trip.pinned ? 'Unsave route' : 'Save route'} onClick={() => pinTrip(trip.id, !trip.pinned)}>
-            <Bookmark size={18} fill={trip.pinned ? 'currentColor' : 'none'} className={trip.pinned ? 'text-brand' : ''} />
+      {isDemoRoad ? (
+        <>
+          <Button variant="primary" className="w-full bg-go text-bg hover:bg-go/90" onClick={() => go('demo')}>
+            <Play size={18} fill="currentColor" /> Watch the demo drive
           </Button>
-        )}
-        {from && to && (
-          <Button variant="raise" aria-label="Share route link" onClick={share}>
-            <Share2 size={18} /> {copied ? 'Copied' : ''}
+          <p className="px-1 text-sm text-mute">This is a real road far from you (the Tail of the Dragon, USA), so GPS has nothing to follow. The demo drives it for you and calls every corner.</p>
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+            <Button variant="primary" className="bg-go text-bg hover:bg-go/90" onClick={() => go('gps')}>
+              <Play size={18} fill="currentColor" /> Start with GPS
+            </Button>
+            {trip && (
+              <Button variant="raise" aria-label={trip.pinned ? 'Unsave route' : 'Save route'} onClick={() => pinTrip(trip.id, !trip.pinned)}>
+                <Bookmark size={18} fill={trip.pinned ? 'currentColor' : 'none'} className={trip.pinned ? 'text-brand' : ''} />
+              </Button>
+            )}
+            {from && to && (
+              <Button variant="raise" aria-label="Share route link" onClick={share}>
+                <Share2 size={18} /> {copied ? 'Copied' : ''}
+              </Button>
+            )}
+          </div>
+          <Button variant="raise" className="w-full" onClick={() => go('demo')}>
+            Watch a demo drive (no GPS)
           </Button>
-        )}
-      </div>
-      <Button variant="raise" className="w-full" onClick={() => go('demo')}>
-        Watch a demo drive (no GPS)
-      </Button>
+        </>
+      )}
 
       {from && to && (
         <div className="space-y-2">
