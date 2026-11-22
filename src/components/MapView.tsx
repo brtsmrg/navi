@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { LngLatBounds, Map as MapGL, setWorkerUrl, type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
+import { LngLatBounds, Map as MapGL, NavigationControl, setWorkerUrl, type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import type { Feature, FeatureCollection } from 'geojson';
 import { RouteTracker, type Stage } from '@/core';
@@ -78,7 +78,8 @@ export function MapView() {
         maxPitch: 70,
       });
       map.current = m;
-      m.touchZoomRotate.disableRotation();
+      // two-finger twist rotates the map; the compass (top right) appears when rotated and snaps back to north on tap
+      m.addControl(new NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }), 'top-right');
       const map1 = m;
       const push = () => {
         if (!ready.current) return;

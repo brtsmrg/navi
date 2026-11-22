@@ -1,4 +1,5 @@
-import { Compass, History as HistoryIcon, Settings as Cog, Star } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, Compass, History as HistoryIcon, Settings as Cog, Star } from 'lucide-react';
 import { useApp, type Tab } from '@/lib/store';
 import { cn } from '@/lib/cn';
 import { ExplorePanel } from './ExplorePanel';
@@ -17,9 +18,41 @@ export function Shell() {
   const setTab = useApp((s) => s.setTab);
   const setSettingsOpen = useApp((s) => s.setSettingsOpen);
   const stage = useApp((s) => s.stage);
+  const to = useApp((s) => s.to);
+  const [min, setMin] = useState(false);
+  const startY = useRef<number | null>(null);
+
+  // a new destination or route brings the panel back
+  useEffect(() => setMin(false), [to, stage]);
+
+  if (min) {
+    const label = stage ? 'Show route' : 'Show panel';
+    return (
+      <button
+        onClick={() => setMin(false)}
+        aria-label={label}
+        className="absolute bottom-[max(16px,env(safe-area-inset-bottom))] left-1/2 z-10 flex min-h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-panel px-5 text-sm font-medium text-ink shadow-[0_6px_28px_rgba(0,0,0,0.65)] ring-1 ring-line md:left-3 md:translate-x-0"
+      >
+        <ChevronUp size={20} /> {label}
+      </button>
+    );
+  }
+
   return (
     <div className="absolute inset-x-0 bottom-0 z-10 flex max-h-[74dvh] flex-col rounded-t-3xl bg-panel shadow-[0_-8px_40px_rgba(0,0,0,0.6)] md:inset-y-3 md:left-3 md:right-auto md:max-h-none md:w-[420px] md:rounded-3xl md:shadow-2xl">
-      <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line md:hidden" aria-hidden />
+      <button
+        aria-label="Minimise to see the full map"
+        onClick={() => setMin(true)}
+        onTouchStart={(e) => (startY.current = e.touches[0].clientY)}
+        onTouchEnd={(e) => {
+          if (startY.current !== null && e.changedTouches[0].clientY - startY.current > 40) setMin(true);
+          startY.current = null;
+        }}
+        className="group mx-auto mt-1 flex h-9 w-full shrink-0 items-center justify-center text-mute"
+      >
+        <span className="h-1 w-10 rounded-full bg-line md:hidden" aria-hidden />
+        <ChevronDown size={22} className="hidden md:block" aria-hidden />
+      </button>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pt-3">
         {tab === 'explore' && !stage && (
           <div className="mb-3 flex items-baseline justify-between px-1">

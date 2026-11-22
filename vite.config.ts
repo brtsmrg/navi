@@ -6,9 +6,12 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // base './' keeps one build working at a domain root, under a GitHub Pages sub-path, and inside the native shells.
+const BUILD = `${(process.env.GITHUB_SHA ?? 'local').slice(0, 7)} ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+
 export default defineConfig({
   base: './',
   plugins: [
+    { name: 'navi-version', generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.txt', source: BUILD }); } },
     react(),
     tailwindcss(),
     VitePWA({
@@ -45,7 +48,7 @@ export default defineConfig({
     }),
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  define: { __BUILD__: JSON.stringify(`${(process.env.GITHUB_SHA ?? 'local').slice(0, 7)} ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`) },
+  define: { __BUILD__: JSON.stringify(BUILD) },
   build: { target: 'es2022', sourcemap: false },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },
 });

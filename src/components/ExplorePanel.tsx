@@ -187,6 +187,7 @@ function HomeView() {
           <input ref={file} type="file" accept=".gpx,application/gpx+xml,text/xml" className="hidden" onChange={(e) => { void onGpx(e.target.files?.[0]); e.target.value = ''; }} />
         </div>
       </section>
+      <p className="pb-2 text-center text-xs text-mute">Navi build {__BUILD__}</p>
     </div>
   );
 }

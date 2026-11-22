@@ -136,3 +136,9 @@ select:focus-visible {
 .scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* map compass: big enough to hit with a thumb, dark to match, clear of the notch */
+.maplibregl-ctrl-top-right { margin-top: max(8px, env(safe-area-inset-top)); }
+.maplibregl-ctrl-group { background: var(--color-panel, #0e1013) !important; border-radius: 14px !important; box-shadow: 0 0 0 1px #262a30 !important; }
+.maplibregl-ctrl-group button { width: 44px !important; height: 44px !important; }
+.maplibregl-ctrl-compass .maplibregl-ctrl-icon { filter: invert(1); }
