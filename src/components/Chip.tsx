@@ -6,12 +6,12 @@ import { cn, SEV_COLOR } from '@/lib/cn';
 /** "L4" / "R3" style call label with direction colour. */
 export function CallLabel({ note, opts, big = false }: { note: Note; opts: PhraseOptions; big?: boolean }) {
   const l = noteLabel(note, opts);
-  const dirColor = l.dir === 'L' ? 'text-dirl' : l.dir === 'R' ? 'text-dirr' : 'text-ink';
   const sevColor = note.severity ? SEV_COLOR[note.severity] : undefined;
+  const dirColor = sevColor ? '' : 'text-ink';
   return (
     <div className={cn('flex items-baseline gap-1.5 font-display font-bold leading-none', big ? 'text-7xl' : 'text-3xl')}>
-      {l.dir && <span className={cn(dirColor)}>{l.dir === 'L' ? '‹' : '›'}</span>}
-      {l.dir && <span className={dirColor}>{l.dir}</span>}
+      {l.dir && <span style={{ color: sevColor }} className={dirColor}>{l.dir === 'L' ? '‹' : '›'}</span>}
+      {l.dir && <span style={{ color: sevColor }} className={dirColor}>{l.dir}</span>}
       <span style={{ color: sevColor }} className={sevColor ? '' : 'text-ink'}>
         {l.num}
       </span>

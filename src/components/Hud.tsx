@@ -3,7 +3,7 @@ import { Square, Volume2, VolumeX, Settings as Cog, TriangleAlert } from 'lucide
 import { formatDistance, formatSpeed, speedUnit, type Note } from '@/core';
 import { useApp, useRideStore } from '@/lib/store';
 import { stopRide, testSound } from '@/ride/controller';
-import { cn } from '@/lib/cn';
+import { cn, SEV_COLOR } from '@/lib/cn';
 import { CallLabel, TurnText } from './Chip';
 import { Glyph } from './Glyph';
 import { TurnArrow } from './TurnArrow';
@@ -34,7 +34,7 @@ export function Hud() {
 
   return (
     <>
-      {cueSide && <div aria-hidden className={cn('edge-cue', cueSide === 'L' ? 'l' : 'r')} />}
+      {cueSide && <div aria-hidden style={{ ['--cue' as string]: SEV_COLOR[next?.severity ?? 4] }} className={cn('edge-cue', cueSide === 'L' ? 'l' : 'r')} />}
       <div className="safe-t pointer-events-none absolute inset-x-0 top-0 z-10 px-3">
         <div className={cn('pointer-events-auto rounded-3xl bg-panel/95 p-4 shadow-2xl backdrop-blur', alert && 'ring-4 ring-sev1')}>
           {next ? (

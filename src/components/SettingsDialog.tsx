@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, Upload, Volume2 } from 'lucide-react';
 import { DIALECTS, type DialectId, type DriverProfile, type UnitSystem } from '@/core';
+import { SEV_COLOR } from '@/lib/cn';
 import { useApp, type Readout } from '@/lib/store';
 import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
@@ -27,6 +28,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </section>
   );
 }
+
+const KEY: [number, string][] = [[1, 'Hairpin'], [2, 'Sharp'], [3, 'Medium'], [4, 'Easy'], [5, 'Gentle'], [6, 'Almost flat']];
 
 /** What this phone says about sound, so a silent test can be explained instead of guessed at. */
 function SoundReport({ voices, tick }: { voices: number; tick: string }) {
@@ -139,6 +142,15 @@ export function SettingsDialog() {
           <Segmented<Readout> label="Turn text" value={st.readout} onChange={(readout) => set({ readout })} options={READOUTS.map((r) => ({ value: r.value, label: r.label }))} />
           <p className="text-sm text-mute">{readout?.blurb}</p>
           <p className="text-sm text-mute">The spoken words always appear on screen too.</p>
+          <div aria-label="Colour key" className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl bg-bg p-3 text-sm">
+            {KEY.map(([n, label]) => (
+              <span key={n} className="flex items-center gap-2">
+                <span aria-hidden className="h-4 w-4 shrink-0 rounded" style={{ backgroundColor: SEV_COLOR[n] }} />
+                {label}
+              </span>
+            ))}
+          </div>
+          <p className="text-sm text-mute">Colour shows how sharp the turn is. The arrow and the word LEFT or RIGHT show which way.</p>
         </Section>
 
         <Section title="Route">
