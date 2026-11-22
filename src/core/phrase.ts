@@ -134,6 +134,43 @@ export function noteLabel(n: Note, o: PhraseOptions): { dir?: 'L' | 'R'; num: st
   return { dir: n.side, num: 'X', mods };
 }
 
+export interface FullLabel {
+  dir?: 'L' | 'R';
+  /** "Sharp left", "Hairpin right", "Roundabout, 2nd exit": never abbreviated. */
+  headline: string;
+  /** "long, tightens": the modifiers in words. */
+  detail: string;
+}
+
+/** On-screen label in plain words, for drivers who do not want to decode L4, R2, H or SQ. */
+export function fullLabel(n: Note): FullLabel {
+  const detail: string[] = [];
+  if (n.mods.caution) detail.push('careful');
+  if (n.mods.long) detail.push('long');
+  if (n.mods.tightens) detail.push('tightens');
+  if (n.mods.opens) detail.push('opens');
+  const det = detail.join(', ');
+  const side = n.side ? sideWord(n.side) : '';
+  const out = (headline: string): FullLabel => ({ dir: n.side, headline, detail: det });
+  switch (n.kind) {
+    case 'finish': return out('Arrive');
+    case 'roundabout': return out(`Roundabout, ${ordinal(n.mods.exitCount ?? 1)} exit`);
+    case 'merge': return out('Merge');
+    case 'uturn': return out(`U-turn${side ? ` ${side}` : ''}`);
+    case 'exit': return out(side ? `Exit ${side}` : 'Exit');
+    case 'junction': {
+      const sh = n.mods.sharpness && n.mods.sharpness !== 'normal' ? `${n.mods.sharpness} ` : '';
+      return out(cap(`turn ${sh}${side || 'ahead'}`));
+    }
+    default:
+      break;
+  }
+  if (n.shape === 'hairpin') return out(`Hairpin ${side}`);
+  if (n.shape === 'square') return out(`Right-angle ${side}`);
+  if (n.shape === 'kink') return out(cap(`slight ${side}`));
+  return out(cap(`${PLAIN_WORD[n.severity ?? 4]} ${side}`));
+}
+
 /** Rough speech duration (ms). English TTS runs near 2.7-3 words per second at rate 1. */
 export function estimateSpeechMs(text: string, rate = 1): number {
   const words = text.split(/[\s,]+/).filter(Boolean).length;

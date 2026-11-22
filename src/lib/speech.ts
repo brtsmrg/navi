@@ -6,6 +6,8 @@ export interface VoiceInfo {
   lang: string;
 }
 
+export type SpeechStatus = 'unsupported' | 'loading' | 'no-voice' | 'ready' | 'error';
+
 export const speechSupported = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
 export function listVoices(): VoiceInfo[] {
@@ -14,6 +16,22 @@ export function listVoices(): VoiceInfo[] {
     .getVoices()
     .filter((v) => v.lang.toLowerCase().startsWith('en'))
     .map((v) => ({ uri: v.voiceURI, name: v.name, lang: v.lang }));
+}
+
+/** Voices load late on Chrome and Safari. Resolves with the English voices, or [] after the wait. */
+export function waitForVoices(ms = 1500): Promise<VoiceInfo[]> {
+  if (!speechSupported()) return Promise.resolve([]);
+  const have = listVoices();
+  if (have.length) return Promise.resolve(have);
+  return new Promise((resolve) => {
+    const done = () => {
+      window.speechSynthesis.removeEventListener('voiceschanged', done);
+      clearTimeout(t);
+      resolve(listVoices());
+    };
+    const t = setTimeout(done, ms);
+    window.speechSynthesis.addEventListener('voiceschanged', done);
+  });
 }
 
 function pick(uri: string): SpeechSynthesisVoice | undefined {
@@ -25,23 +43,45 @@ function pick(uri: string): SpeechSynthesisVoice | undefined {
   );
 }
 
-export function say(text: string, o: { rate: number; voiceURI: string; interrupt?: boolean }): void {
+let lastError = '';
+export const lastSpeechError = () => lastError;
+// Chrome can drop an utterance if nothing holds a reference to it, so keep the live one here.
+export let live: SpeechSynthesisUtterance | undefined;
+let speakTimer: ReturnType<typeof setTimeout> | undefined;
+
+export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void }): void {
   if (!speechSupported()) return;
   const synth = window.speechSynthesis;
+  clearTimeout(speakTimer);
+  const stale = o.interrupt || synth.pending || synth.speaking;
   // never let a backlog build up: stale calls are worse than silence
-  if (o.interrupt || synth.pending) synth.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = o.rate;
-  u.lang = 'en';
-  const v = pick(o.voiceURI);
-  if (v) {
-    u.voice = v;
-    u.lang = v.lang;
-  }
-  synth.speak(u);
+  if (stale) synth.cancel();
+  const go = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = o.rate;
+    u.volume = o.volume ?? 1;
+    u.lang = 'en';
+    const v = pick(o.voiceURI);
+    if (v) {
+      u.voice = v;
+      u.lang = v.lang;
+    }
+    u.onerror = (e) => {
+      if (e.error !== 'interrupted' && e.error !== 'canceled') lastError = e.error;
+    };
+    u.onend = () => o.onDone?.();
+    live = u;
+    synth.resume(); // Chrome can be left paused after a cancel
+    synth.speak(u);
+  };
+  // speaking in the same tick as cancel() is silently dropped by Chrome and some WebKit builds
+  if (stale) speakTimer = setTimeout(go, 80);
+  else go();
 }
 
 export function stopSpeaking(): void {
+  clearTimeout(speakTimer);
+  live = undefined;
   if (speechSupported()) window.speechSynthesis.cancel();
 }
 

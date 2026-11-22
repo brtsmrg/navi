@@ -15,7 +15,7 @@ export function Button({
       {...p}
       className={cn(
         'inline-flex min-h-12 select-none items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-medium transition active:scale-[0.98] disabled:opacity-40',
-        variant === 'primary' && 'bg-ink text-bg hover:bg-white',
+        variant === 'primary' && 'bg-brand text-white hover:bg-brand/90',
         variant === 'raise' && 'bg-raise text-ink hover:bg-line',
         variant === 'quiet' && 'text-mute hover:text-ink',
         className,
@@ -63,9 +63,9 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
       <Switch.Root
         checked={checked}
         onCheckedChange={onChange}
-        className="relative h-7 w-12 shrink-0 rounded-full bg-line transition data-[state=checked]:bg-go"
+        className="relative h-7 w-12 shrink-0 rounded-full bg-line transition data-[state=checked]:bg-brand"
       >
-        <Switch.Thumb className="block size-5 translate-x-1 rounded-full bg-ink transition data-[state=checked]:translate-x-6 data-[state=checked]:bg-bg" />
+        <Switch.Thumb className="block size-5 translate-x-1 rounded-full bg-ink transition data-[state=checked]:translate-x-6 data-[state=checked]:bg-white" />
       </Switch.Root>
     </label>
   );

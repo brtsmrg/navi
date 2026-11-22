@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { parseGpx } from './gpx';
-import { mapFeatures } from './photon';
+import { CATEGORIES, crowMeters, mapFeatures } from './photon';
 import { decodePolyline, encodePolyline } from './polyline';
 import { buildShareUrl, parseShareHash } from './share';
-import { mapEdges, parseRoute } from './valhalla';
+import { costingOptions, mapEdges, parseRoute } from './valhalla';
 
 describe('polyline', () => {
   it('matches the published Google example (precision 5)', () => {
@@ -102,5 +102,26 @@ describe('share links', () => {
     expect(parseShareHash('#r=' + 'a'.repeat(3000))).toBeNull();
     expect(parseShareHash('#r=')).toBeNull();
     expect(parseShareHash('#nonsense')).toBeNull();
+  });
+});
+
+describe('route options', () => {
+  it('maps avoid switches to router factors', () => {
+    expect(costingOptions(undefined)).toBeUndefined();
+    expect(costingOptions({ highways: false, tolls: false, ferries: false })).toBeUndefined();
+    expect(costingOptions({ highways: true, tolls: true, ferries: true })).toEqual({ auto: { use_highways: 0, use_tolls: 0, use_ferry: 0 } });
+    expect(costingOptions({ tolls: true })).toEqual({ auto: { use_tolls: 0 } });
+  });
+});
+
+describe('nearby search helpers', () => {
+  it('measures straight-line distance', () => {
+    // one degree of latitude is about 111.2 km
+    expect(Math.round(crowMeters([0, 0], [0, 1]) / 1000)).toBe(111);
+    expect(crowMeters([10, 46], [10, 46])).toBe(0);
+  });
+  it('has the categories the UI offers', () => {
+    expect(CATEGORIES.map((c) => c.id)).toEqual(['fuel', 'charging', 'food', 'coffee', 'parking']);
+    expect(CATEGORIES.every((c) => c.tags.every((t) => /^[a-z_]+:[a-z_]+$/.test(t)))).toBe(true);
   });
 });

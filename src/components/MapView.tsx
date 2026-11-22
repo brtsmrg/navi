@@ -7,6 +7,7 @@ import { CONFIG } from '@/providers/config';
 import { loadStyle } from '@/lib/mapStyle';
 import { SEV_COLOR } from '@/lib/cn';
 import { useApp, useRideStore } from '@/lib/store';
+import { dropPin } from '@/lib/flow';
 
 // Vite fingerprints the worker file; tell MapLibre where it ended up.
 setWorkerUrl(workerUrl);
@@ -87,17 +88,47 @@ export function MapView() {
         (map1.getSource('pts') as GeoJSONSource).setData(g.pts);
       };
       (map1 as unknown as { _push: () => void })._push = push;
+      const pushPins = () => {
+        if (!ready.current) return;
+        const { from, to, via } = useApp.getState();
+        const pin = (p: { lngLat: [number, number] }, color: string) => ({ type: 'Feature' as const, properties: { color }, geometry: { type: 'Point' as const, coordinates: p.lngLat } });
+        const feats = [
+          ...(from && from.id !== 'here' ? [pin(from, '#ffffff')] : []),
+          ...via.map((v) => pin(v, '#ffb02e')),
+          ...(to ? [pin(to, '#e41626')] : []),
+        ];
+        (map1.getSource('pins') as GeoJSONSource).setData({ type: 'FeatureCollection', features: feats });
+      };
+      (map1 as unknown as { _pins: () => void })._pins = pushPins;
+
+      // long-press (or right-click) drops a pin and routes there
+      let pressTimer: ReturnType<typeof setTimeout> | undefined;
+      const cancel = () => clearTimeout(pressTimer);
+      const drop = (ll: { lng: number; lat: number }) => {
+        if (useRideStore.getState().active) return;
+        void dropPin([ll.lng, ll.lat]);
+      };
+      map1.on('contextmenu', (e) => drop(e.lngLat));
+      map1.on('touchstart', (e) => {
+        cancel();
+        if (e.points.length !== 1) return;
+        pressTimer = setTimeout(() => drop(e.lngLat), 650);
+      });
+      for (const ev of ['touchmove', 'touchend', 'touchcancel', 'movestart', 'zoomstart'] as const) map1.on(ev, cancel);
       map1.on('load', () => {
-        for (const id of ['line', 'hot', 'pts', 'me']) map1.addSource(id, { type: 'geojson', data: EMPTY });
+        for (const id of ['line', 'hot', 'pts', 'me', 'pins']) map1.addSource(id, { type: 'geojson', data: EMPTY });
         const round = { 'line-cap': 'round', 'line-join': 'round' } as const;
         map1.addLayer({ id: 'route-casing', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#05070a', 'line-width': 11 } });
         map1.addLayer({ id: 'route', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#e9edf2', 'line-width': 5, 'line-opacity': 0.85 } });
         map1.addLayer({ id: 'route-hot', type: 'line', source: 'hot', layout: round, paint: { 'line-color': ['get', 'color'], 'line-width': 6 } });
         map1.addLayer({ id: 'notes', type: 'circle', source: 'pts', paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['get', 'r'], 'circle-stroke-color': '#05070a', 'circle-stroke-width': 2 } });
+        map1.addLayer({ id: 'pins-halo', type: 'circle', source: 'pins', paint: { 'circle-color': ['get', 'color'], 'circle-opacity': 0.3, 'circle-radius': 16 } });
+        map1.addLayer({ id: 'pins', type: 'circle', source: 'pins', paint: { 'circle-color': ['get', 'color'], 'circle-radius': 8, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } });
         map1.addLayer({ id: 'me-halo', type: 'circle', source: 'me', paint: { 'circle-color': '#56d7e0', 'circle-opacity': 0.25, 'circle-radius': 18 } });
         map1.addLayer({ id: 'me', type: 'circle', source: 'me', paint: { 'circle-color': '#56d7e0', 'circle-radius': 7, 'circle-stroke-color': '#0b0d10', 'circle-stroke-width': 3 } });
         ready.current = true;
         push();
+        pushPins();
         fitToStage(map1, useApp.getState().stage);
       });
     });
@@ -107,6 +138,14 @@ export function MapView() {
       m?.remove();
       map.current = null;
     };
+  }, []);
+
+  // start, stop and destination pins
+  useEffect(() => {
+    const redraw = () => (map.current as (MapGL & { _pins?: () => void }) | null)?._pins?.();
+    return useApp.subscribe((st, prev) => {
+      if (st.from !== prev.from || st.to !== prev.to || st.via !== prev.via) redraw();
+    });
   }, []);
 
   // route changes

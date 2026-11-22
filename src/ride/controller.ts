@@ -1,6 +1,7 @@
-import { CallScheduler, RouteTracker, speedProfile, type Stage } from '@/core';
+import { CallScheduler, RouteTracker, gapText, speedProfile, type Call, type Stage } from '@/core';
 import { useApp, useRideStore } from '@/lib/store';
-import { primeSpeech, say, stopSpeaking } from '@/lib/speech';
+import { primeSpeech, say, stopSpeaking, speechSupported, waitForVoices } from '@/lib/speech';
+import { cue, releaseAudio, unlockAudio } from '@/lib/audio';
 import { keepAwake } from '@/lib/wakeLock';
 
 /**
@@ -13,10 +14,34 @@ let stopAwake: (() => void) | undefined;
 let unsub: (() => void) | undefined;
 let scheduler: CallScheduler | undefined;
 
-function emit(text: string, urgency: string, interrupt: boolean) {
+let stageRef: Stage | undefined;
+
+/** Plain English calls open with the distance ("In 150 metres, sharp left"); rally calls stay terse. */
+function withLead(call: Call, text: string): string {
   const { settings } = useApp.getState();
-  useRideStore.setState({ lastCall: { text, urgency, at: Date.now() } });
-  if (!settings.muted) say(text, { rate: settings.speechRate, voiceURI: settings.voiceURI, interrupt });
+  if (settings.dialect !== 'plain' || call.kind !== 'notes' || call.distanceToFirst < 60) return text;
+  const g = gapText(call.distanceToFirst, { dialect: 'plain', units: settings.units });
+  const lead = g.replace(/^then /, '');
+  if (lead === g) return text;
+  return `${lead.charAt(0).toUpperCase()}${lead.slice(1)}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+}
+
+function emit(call: Call) {
+  const { settings } = useApp.getState();
+  const text = withLead(call, call.text);
+  const interrupt = call.kind === 'alert';
+  useRideStore.setState({ lastCall: { text, urgency: call.urgency, at: Date.now() } });
+  if (settings.muted) return;
+  const first = stageRef?.notes.find((n) => n.id === call.firstNoteId);
+  const side = first?.side;
+  let delay = 0;
+  if (settings.cues && (call.kind === 'alert' || side)) {
+    cue(call.kind === 'alert' ? undefined : side, call.kind === 'alert' ? 1 : (first?.severity ?? 4), settings.volume);
+    delay = 260; // let the tone finish before the voice starts
+  }
+  const speak = () => say(text, { rate: settings.speechRate, voiceURI: settings.voiceURI, volume: settings.volume, interrupt });
+  if (delay) setTimeout(speak, delay);
+  else speak();
 }
 
 function schedulerOptions() {
@@ -33,6 +58,22 @@ function schedulerOptions() {
   };
 }
 
+/** Immediate audible proof that sound works, and a plain note when this device has no voice. */
+function announceReady() {
+  const { settings } = useApp.getState();
+  if (settings.muted) return;
+  if (settings.cues) cue(undefined, 4, settings.volume);
+  void waitForVoices().then((voices) => {
+    if (!useRideStore.getState().active) return;
+    if (!speechSupported() || voices.length === 0) {
+      useRideStore.setState({ audioNote: 'This device has no voice installed. You will hear beeps (left ear = left turn) and see the turn on screen.' });
+      return;
+    }
+    const st = useApp.getState().settings;
+    say('Navi is on.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
+  });
+}
+
 export interface RideOptions {
   kind: 'gps' | 'demo';
   /** demo only */
@@ -42,7 +83,9 @@ export interface RideOptions {
 
 export function startRide(stage: Stage, o: RideOptions): void {
   stopRide();
-  primeSpeech(); // must run inside the tap handler for iOS
+  stageRef = stage;
+  unlockAudio(); // browsers only allow sound after a tap, so this runs inside the tap handler
+  primeSpeech();
   const tracker = new RouteTracker(stage.route.coords);
   scheduler = new CallScheduler(stage.notes, schedulerOptions());
   scheduler.reset(0);
@@ -55,12 +98,13 @@ export function startRide(stage: Stage, o: RideOptions): void {
   const warp = o.warp ?? 1;
   useRideStore.setState({
     active: true, kind: o.kind, s: 0, v: 0, lngLat: stage.route.coords[0], bearing: 0,
-    lastCall: null, offRoute: false, warp, gpsError: null,
+    lastCall: null, offRoute: false, warp, gpsError: null, audioNote: null,
   });
+  announceReady();
 
   const handle = (s: number, v: number, nowMs: number) => {
     const call = scheduler?.update(s, v, nowMs);
-    if (call) emit(call.text, call.urgency, call.kind === 'alert');
+    if (call) emit(call);
     if (s >= tracker.length - 5) finishSoon();
   };
 
@@ -143,5 +187,7 @@ export function stopRide(): void {
   unsub = undefined;
   scheduler = undefined;
   stopSpeaking();
+  releaseAudio();
+  stageRef = undefined;
   useRideStore.setState({ active: false });
 }

@@ -96,11 +96,29 @@ async function getJson(url: string, init: RequestInit): Promise<unknown> {
   return res.json();
 }
 
-export async function fetchRoute(waypoints: LngLat[], signal?: AbortSignal): Promise<Route> {
+export interface AvoidOptions {
+  highways?: boolean;
+  tolls?: boolean;
+  ferries?: boolean;
+}
+
+/** Valhalla "use_*" factors run 0 (avoid) to 1 (prefer); anything not avoided is left at the router default. */
+export function costingOptions(a: AvoidOptions | undefined): { auto: Record<string, number> } | undefined {
+  if (!a) return undefined;
+  const auto: Record<string, number> = {};
+  if (a.highways) auto.use_highways = 0;
+  if (a.tolls) auto.use_tolls = 0;
+  if (a.ferries) auto.use_ferry = 0;
+  return Object.keys(auto).length ? { auto } : undefined;
+}
+
+export async function fetchRoute(waypoints: LngLat[], signal?: AbortSignal, avoid?: AvoidOptions): Promise<Route> {
   if (waypoints.length < 2) throw new Error('Need a start and an end');
+  const costing_options = costingOptions(avoid);
   const body = {
     locations: waypoints.map(([lon, lat]) => ({ lat, lon })),
     costing: 'auto',
+    ...(costing_options ? { costing_options } : {}),
     directions_options: { language: 'en-US' },
   };
   const url = `${CONFIG.valhalla}/route?json=${encodeURIComponent(JSON.stringify(body))}`;

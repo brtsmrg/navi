@@ -9,3 +9,4 @@
 7. **Background-capable native tracking** (iOS and Android location services) so the screen can sleep.
 8. **Community layer** (the acquisition story, see docs/ACQUISITION-READINESS.md): driver corrections on any call, road ratings, opt-in "real corner speed" sharing, club and event stages. Needs Terms of Service, privacy policy and consent first.
 9. **Name clearance** before wider branding.
+10. **Done in the UI overhaul:** saved places, favourites, history, route options, near-me search, long-press pin, plain-word turn cards, audio cues. **Next:** offline maps, share a route link, turn-by-turn lane hints, Android Auto and CarPlay.

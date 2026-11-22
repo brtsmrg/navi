@@ -46,3 +46,67 @@ export async function searchPlaces(q: string, bias?: LngLat, signal?: AbortSigna
   const json = (await res.json()) as { features?: Feature[] };
   return mapFeatures(json.features ?? []);
 }
+
+export interface Category {
+  id: string;
+  label: string;
+  /** OSM tags Photon filters on (OR within one key). */
+  tags: string[];
+  query: string;
+}
+
+export const CATEGORIES: Category[] = [
+  { id: 'fuel', label: 'Fuel', tags: ['amenity:fuel'], query: 'fuel' },
+  { id: 'charging', label: 'Charging', tags: ['amenity:charging_station'], query: 'charging' },
+  { id: 'food', label: 'Food', tags: ['amenity:restaurant', 'amenity:fast_food'], query: 'restaurant' },
+  { id: 'coffee', label: 'Coffee', tags: ['amenity:cafe'], query: 'coffee' },
+  { id: 'parking', label: 'Parking', tags: ['amenity:parking'], query: 'parking' },
+];
+
+const toRad = (d: number) => (d * Math.PI) / 180;
+/** Straight-line metres between two points, for sorting "near me" results. */
+export function crowMeters(a: LngLat, b: LngLat): number {
+  const dLat = toRad(b[1] - a[1]);
+  const dLon = toRad(b[0] - a[0]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[1])) * Math.cos(toRad(b[1])) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(h));
+}
+
+export type NearbyPlace = Place & { distanceM: number };
+
+/** Places of one kind around a point, nearest first. */
+export async function searchNearby(cat: Category, near: LngLat, signal?: AbortSignal): Promise<NearbyPlace[]> {
+  const u = new URL('/api', CONFIG.photon);
+  u.searchParams.set('q', cat.query);
+  u.searchParams.set('limit', '12');
+  u.searchParams.set('lang', 'en');
+  u.searchParams.set('lon', String(near[0]));
+  u.searchParams.set('lat', String(near[1]));
+  u.searchParams.set('location_bias_scale', '0.1');
+  for (const t of cat.tags) u.searchParams.append('osm_tag', t);
+  const res = await fetch(u, { signal, credentials: 'omit' });
+  if (!res.ok) throw new Error(`Search failed (${res.status})`);
+  const json = (await res.json()) as { features?: Feature[] };
+  return mapFeatures(json.features ?? [])
+    .map((p) => ({ ...p, distanceM: crowMeters(near, p.lngLat) }))
+    .sort((a, b) => a.distanceM - b.distanceM)
+    .slice(0, 8);
+}
+
+/** Name for a dropped pin. Falls back to coordinates when the lookup fails. */
+export async function reversePlace(at: LngLat, signal?: AbortSignal): Promise<Place> {
+  const fallback: Place = { id: `pin${at[0].toFixed(5)},${at[1].toFixed(5)}`, title: 'Dropped pin', subtitle: `${at[1].toFixed(4)}, ${at[0].toFixed(4)}`, lngLat: at };
+  try {
+    const u = new URL('/reverse', CONFIG.photon);
+    u.searchParams.set('lon', String(at[0]));
+    u.searchParams.set('lat', String(at[1]));
+    u.searchParams.set('lang', 'en');
+    const res = await fetch(u, { signal, credentials: 'omit' });
+    if (!res.ok) return fallback;
+    const json = (await res.json()) as { features?: Feature[] };
+    const hit = mapFeatures(json.features ?? [])[0];
+    return hit ? { ...hit, id: fallback.id, lngLat: at, title: hit.title || 'Dropped pin', subtitle: hit.subtitle || fallback.subtitle } : fallback;
+  } catch {
+    return fallback;
+  }
+}

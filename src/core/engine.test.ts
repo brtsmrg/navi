@@ -7,6 +7,7 @@ import {
   drive,
   demoStage,
   estimateSpeechMs,
+  fullLabel,
   generateStage,
   noteText,
   severityFromRadius,
@@ -279,5 +280,20 @@ describe('scheduler: simulated drives', () => {
     let call = null;
     for (let s = 400; s < 900 && !call; s += 5) call = sch.update(s, 18, s * 10);
     expect(call!.urgency).toBe('normal');
+  });
+});
+
+describe('full-word labels', () => {
+  const base: Note = { id: 'n', kind: 'corner', s: 0, sEnd: 10, side: 'L', severity: 2, mods: {} };
+  it('spells corners out', () => {
+    expect(fullLabel(base)).toEqual({ dir: 'L', headline: 'Sharp left', detail: '' });
+    expect(fullLabel({ ...base, side: 'R', severity: 6, mods: { long: true, tightens: true } })).toEqual({ dir: 'R', headline: 'Slight right', detail: 'long, tightens' });
+    expect(fullLabel({ ...base, shape: 'hairpin', severity: 1 }).headline).toBe('Hairpin left');
+    expect(fullLabel({ ...base, shape: 'square', side: 'R' }).headline).toBe('Right-angle right');
+  });
+  it('spells out non-corners', () => {
+    expect(fullLabel({ ...base, kind: 'roundabout', side: undefined, mods: { exitCount: 2 } }).headline).toBe('Roundabout, 2nd exit');
+    expect(fullLabel({ ...base, kind: 'finish', side: undefined }).headline).toBe('Arrive');
+    expect(fullLabel({ ...base, kind: 'junction', mods: { sharpness: 'sharp' } }).headline).toBe('Turn sharp left');
   });
 });

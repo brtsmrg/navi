@@ -9,12 +9,13 @@
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, sans-serif;
 
-  --color-bg: #0b0d10;
-  --color-panel: #12161b;
-  --color-raise: #1a2027;
-  --color-line: #262e37;
-  --color-ink: #e9edf2;
-  --color-mute: #8b96a4;
+  --color-bg: #07080a;
+  --color-panel: #0e1013;
+  --color-raise: #181b20;
+  --color-line: #262a30;
+  --color-ink: #f5f6f8;
+  --color-mute: #98a0ab;
+  --color-brand: #e41626;
   --color-dirl: #56d7e0;
   --color-dirr: #ffb54a;
   --color-go: #7fd6a1;
@@ -42,6 +43,11 @@ body,
   outline: 2px solid var(--color-dirl);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 .maplibregl-ctrl-attrib {
@@ -108,3 +114,25 @@ body,
 .navi-splash .navi-text { animation: navi-wipe 700ms cubic-bezier(0.3, 0, 0.2, 1) 150ms both; }
 .navi-splash .navi-dot { animation: navi-dot 1150ms cubic-bezier(0.16, 0.7, 0.3, 1) 650ms both; }
 .navi-splash .navi-streak { animation: navi-streak 1150ms linear 650ms both; }
+
+/* Side cue: a coloured edge glow on the side of the next turn, so left and right read without reading. */
+@keyframes edge-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.edge-cue {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26vw;
+  max-width: 140px;
+  pointer-events: none;
+  animation: edge-pulse 0.7s ease-in-out infinite;
+  z-index: 5;
+}
+.edge-cue.l { left: 0; background: linear-gradient(90deg, rgb(86 215 224 / 0.75), transparent); }
+.edge-cue.r { right: 0; background: linear-gradient(270deg, rgb(255 181 74 / 0.75), transparent); }
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

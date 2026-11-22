@@ -14,13 +14,16 @@ if not exist ".git" (
   echo This folder is not the Navi repo: %CD%
   goto :end
 )
+rem remove files this update replaces (safe if already gone)
+if exist "src\components\PlanPanel.tsx" del /q "src\components\PlanPanel.tsx" >> "%LOG%" 2>&1
+if exist "src\components\PlaceField.tsx" del /q "src\components\PlaceField.tsx" >> "%LOG%" 2>&1
 git add -A >> "%LOG%" 2>&1
 git diff --cached --quiet
 if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo Brand: Navi wordmark icon, animated splash, black theme, Rubik credit
+> "%TEMP%\navi-update-msg.txt" echo UI overhaul: audio fixes, full-word turn cards, Saved/Favourites/History, route options
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7

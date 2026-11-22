@@ -11,6 +11,12 @@ npm run dev
 ```
 Open the URL, tap **Try a demo stage**, then **Watch a demo drive**. Voice starts after your first tap (iOS requires it).
 
+## What it does
+- Search a place, drop a pin (long-press the map), or tap **Near me** (fuel, charging, food, coffee, parking).
+- Save Home, Work and Favourites; Recent trips keep a history; pin a trip to keep it under Saved. All stored on the device only, with JSON backup and restore.
+- Route options: avoid motorways, tolls or ferries; up to three stops; arrival time.
+- Turns are shown as big arrows with plain words ("Sharp left") and spoken in plain English or rally shorthand. Optional stereo beeps (left ear = left turn) in Settings.
+
 ## On your phone
 See [docs/MOBILE.md](docs/MOBILE.md): web app (iPhone and Android), Android test APK, unsigned iPhone IPA for SideStore/AltStore/Sideloadly, and the xtool shell for building on Windows.
 
