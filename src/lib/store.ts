@@ -27,6 +27,9 @@ export interface Settings {
   leadSec: number;
   speechRate: number;
   voiceURI: string;
+  /** Recorded co-driver voice (default) or the phone's own built-in voice. */
+  voiceEngine: 'recorded' | 'phone';
+  clipVoice: 'george' | 'michael' | 'emma' | 'heart';
   muted: boolean;
   safetyAccepted: boolean;
   stageAttested: boolean;
@@ -54,6 +57,8 @@ const DEFAULTS: Settings = {
   leadSec: 7,
   speechRate: 1.1,
   voiceURI: '',
+  voiceEngine: 'recorded',
+  clipVoice: 'george',
   muted: false,
   safetyAccepted: false,
   stageAttested: false,

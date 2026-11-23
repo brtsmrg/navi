@@ -35,9 +35,16 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: 'index.html',
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // the default recorded voice ships with the app; the other voices are kept after first use
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}', 'voices/george.{mp3,json}'],
+        globIgnores: ['voices/{michael,emma,heart}.*'],
         // map tiles you have already looked at keep working with no signal (the style and tiles are public OpenFreeMap files)
         runtimeCaching: [
+          {
+            urlPattern: ({ url }: { url: URL }) => /\/voices\/[a-z]+\.(mp3|json)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'navi-voices', cacheableResponse: { statuses: [200] } },
+          },
           {
             urlPattern: ({ url }: { url: URL }) => url.origin === 'https://tiles.openfreemap.org',
             handler: 'CacheFirst',

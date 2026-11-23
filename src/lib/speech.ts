@@ -1,4 +1,5 @@
-/** Thin wrapper over the Web Speech API (free, on-device voices; no data leaves the phone). */
+/** Speech: recorded co-driver clips first, the phone's built-in voice (Web Speech API) as the fallback. Nothing leaves the phone. */
+import { playClips, stopClips } from './clips';
 
 export interface VoiceInfo {
   uri: string;
@@ -68,6 +69,13 @@ export let live: SpeechSynthesisUtterance | undefined;
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void; onStart?: () => void; onFail?: () => void; noRetry?: boolean }): void {
+  if (playClips(text, { rate: o.rate, volume: o.volume, onStart: o.onStart, onDone: o.onDone })) {
+    // recorded voice took the call: make sure the phone voice is not also speaking an old one
+    if (speechSupported()) window.speechSynthesis.cancel();
+    clearTimeout(speakTimer);
+    live = undefined;
+    return;
+  }
   if (!speechSupported()) return;
   const synth = window.speechSynthesis;
   clearTimeout(speakTimer);
@@ -112,6 +120,7 @@ export function say(text: string, o: { rate: number; voiceURI: string; volume?: 
 }
 
 export function stopSpeaking(): void {
+  stopClips();
   clearTimeout(speakTimer);
   live = undefined;
   if (speechSupported()) window.speechSynthesis.cancel();

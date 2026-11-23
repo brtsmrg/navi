@@ -6,6 +6,7 @@ import { useApp, type Readout, type Theme } from '@/lib/store';
 import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
 import { audioReport, testCues, unlockAudio } from '@/lib/audio';
+import { CLIP_VOICES, clipsFailed, loadVoicePack, type ClipVoice } from '@/lib/clips';
 import { useTraffic } from '@/lib/traffic';
 import { VEHICLES } from './vehicles';
 import { Button, Range, Segmented, Sheet, Toggle } from './ui';
@@ -76,6 +77,13 @@ export function SettingsDialog() {
   const testVoice = () => {
     unlockAudio(); // inside the tap, so iOS and Chrome allow sound
     setVoiceMsg('');
+    if (st.voiceEngine === 'recorded') {
+      void loadVoicePack(st.clipVoice).then((ok) => {
+        if (!ok && !speechSupported()) setVoiceMsg('The recorded voice could not load. Check the connection once, then try again.');
+        else say(sample, { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
+      });
+      return;
+    }
     if (!speechSupported()) {
       setVoiceMsg('This browser cannot speak. Use the beep test, or try Safari (iPhone) or Chrome.');
       return;
@@ -123,7 +131,14 @@ export function SettingsDialog() {
           </div>
           {voiceMsg && <p role="status" className="text-sm text-sev3">{voiceMsg}</p>}
           <SoundReport voices={voices.length} tick={voiceMsg} />
-          {speechSupported() && (
+          <Segmented<'recorded' | 'phone'> label="Voice type" value={st.voiceEngine} onChange={(voiceEngine) => set({ voiceEngine })} options={[{ value: 'recorded', label: 'Recorded voice' }, { value: 'phone', label: 'Phone voice' }]} />
+          {st.voiceEngine === 'recorded' && (
+            <>
+              <Segmented<ClipVoice> label="Co-driver" value={st.clipVoice} onChange={(clipVoice) => { set({ clipVoice }); unlockAudio(); void loadVoicePack(clipVoice).then(() => say(sample, { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true })); }} options={CLIP_VOICES.map((v) => ({ value: v.id, label: v.name }))} />
+              <p className="text-sm text-mute">Recorded human-sounding voices, stored in the app, so they work with no signal. {CLIP_VOICES.find((v) => v.id === st.clipVoice)?.blurb}. Anything you type into a note that has no recording is read by the phone voice.{clipsFailed() ? ' The voice has not loaded yet; connect once and reopen Settings.' : ''}</p>
+            </>
+          )}
+          {st.voiceEngine === 'phone' && speechSupported() && (
             <>
               <select aria-label="Voice" value={st.voiceURI} onChange={(e) => set({ voiceURI: e.target.value })} className="min-h-12 w-full rounded-xl bg-bg px-3 text-[16px]">
                 <option value="">Automatic{voices.length === 0 ? ' (no voices found)' : ''}</option>

@@ -3,6 +3,7 @@ import { useApp, useRideStore } from '@/lib/store';
 import { listVoices, primeSpeech, say, stopSpeaking, speechSupported } from '@/lib/speech';
 import { cue, releaseAudio, unlockAudio } from '@/lib/audio';
 import { keepAwake } from '@/lib/wakeLock';
+import { warmClips } from '@/lib/clips';
 
 /**
  * Imperative ride controller: owns the timers, GPS watch, tracker and
@@ -73,10 +74,10 @@ function announceReady() {
   };
   // Speak inside the tap, always. iOS lists its voices late (often empty on first tap) and only lets
   // the first utterance start from a gesture, so waiting for voices would lose the permission.
-  if (speechSupported()) speakIt();
+  if (speechSupported() || settings.voiceEngine === 'recorded') speakIt();
   else useRideStore.setState({ audioNote: 'This browser cannot speak. You will hear beeps (left ear = left turn) and see the turn on screen.' });
   setTimeout(() => {
-    if (useRideStore.getState().active && !heard && speechSupported() && !useRideStore.getState().audioNote) useRideStore.setState({ audioNote: NO_SOUND });
+    if (useRideStore.getState().active && !heard && (speechSupported() || useApp.getState().settings.voiceEngine === 'recorded') && !useRideStore.getState().audioNote) useRideStore.setState({ audioNote: NO_SOUND });
   }, 3500);
 }
 
@@ -133,6 +134,7 @@ export function startRide(stage: Stage, o: RideOptions): void {
   stopRide();
   stageRef = stage;
   unlockAudio(); // browsers only allow sound after a tap, so this runs inside the tap handler
+  warmClips();
   if (!listVoices().length) primeSpeech();
   const tracker = new RouteTracker(stage.route.coords);
   scheduler = new CallScheduler(stage.notes, schedulerOptions());

@@ -106,3 +106,6 @@ export function audioReport(): { ctx: string; session: string } {
     session: nav.audioSession ? `supported (${nav.audioSession.type})` : 'not supported, using a silent clip instead',
   };
 }
+
+/** The shared audio context (exists once the driver has tapped something). */
+export const audioContext = () => ctx;

@@ -9,7 +9,7 @@ Built for drivers who want to see further ahead. It is an aid, not a licence to 
 npm ci
 npm run dev
 ```
-Open the URL, tap **Try a demo stage**, then **Watch a demo drive**. Voice starts after your first tap (iOS requires it).
+Open the URL, tap **Try a demo stage**, then **Watch a demo drive**. Voice starts after your first tap (iOS requires it). Calls are spoken by recorded, human-sounding co-driver voices (George, Michael, Emma or Heart in Settings) that work offline; the phone's own voice is the fallback.
 
 ## What it does
 - Search a place, drop a pin (long-press the map), or tap **Near me** (fuel, charging, food, coffee, parking).
