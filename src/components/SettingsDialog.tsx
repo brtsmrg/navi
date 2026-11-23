@@ -131,6 +131,7 @@ export function SettingsDialog() {
                   <option key={v.uri} value={v.uri}>{v.name} ({v.lang})</option>
                 ))}
               </select>
+              <p className="text-sm text-mute">The free standard voice sounds robotic. On iPhone, open Settings, Accessibility, Spoken Content, Voices, English, and download an Enhanced or Premium voice (Ava, Zoe or Evan sound best). Come back here and pick it from the list; the best voices are listed first.</p>
               <Range label="Voice speed" value={st.speechRate} min={0.8} max={1.5} step={0.05} onChange={(speechRate) => set({ speechRate })} display={`${st.speechRate.toFixed(2)}×`} />
             </>
           )}

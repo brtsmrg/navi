@@ -10,11 +10,31 @@ export type SpeechStatus = 'unsupported' | 'loading' | 'no-voice' | 'ready' | 'e
 
 export const speechSupported = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
+/** Joke and novelty voices that ship with iOS and macOS: never a good co-driver. */
+const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|kathy|ralph|rocko|eddy|flo|grandma|grandpa|reed|sandy|shelley/i;
+/** Natural-sounding voices, roughly best first. */
+const NICE = ['ava', 'zoe', 'evan', 'nicky', 'samantha', 'allison', 'tom', 'daniel', 'karen', 'moira', 'serena', 'oliver', 'kate', 'google uk english', 'google us english', 'natural'];
+
+/** Higher is better: premium and enhanced voices first, then natural names, local voices, English (CA, GB, US). */
+export function voiceScore(v: { name: string; lang: string; localService?: boolean }): number {
+  if (NOVELTY.test(v.name)) return -100;
+  let n = 0;
+  if (/premium/i.test(v.name)) n += 50;
+  else if (/enhanced|natural|neural/i.test(v.name)) n += 40;
+  if (/compact/i.test(v.name)) n -= 20;
+  const i = NICE.findIndex((x) => v.name.toLowerCase().includes(x));
+  if (i >= 0) n += 20 - i;
+  if (/en[-_](CA|GB|US|AU)/i.test(v.lang)) n += 5;
+  if (v.localService) n += 2;
+  return n;
+}
+
 export function listVoices(): VoiceInfo[] {
   if (!speechSupported()) return [];
   return window.speechSynthesis
     .getVoices()
     .filter((v) => v.lang.toLowerCase().startsWith('en'))
+    .sort((a, b) => voiceScore(b) - voiceScore(a))
     .map((v) => ({ uri: v.voiceURI, name: v.name, lang: v.lang }));
 }
 
@@ -36,11 +56,9 @@ export function waitForVoices(ms = 1500): Promise<VoiceInfo[]> {
 
 function pick(uri: string): SpeechSynthesisVoice | undefined {
   const all = window.speechSynthesis.getVoices();
-  return (
-    all.find((v) => v.voiceURI === uri) ??
-    all.find((v) => /en-(CA|GB)/i.test(v.lang) && !/compact/i.test(v.name)) ??
-    all.find((v) => v.lang.toLowerCase().startsWith('en'))
-  );
+  const chosen = all.find((v) => v.voiceURI === uri);
+  if (chosen) return chosen;
+  return all.filter((v) => v.lang.toLowerCase().startsWith('en')).sort((a, b) => voiceScore(b) - voiceScore(a))[0];
 }
 
 let lastError = '';
@@ -60,7 +78,7 @@ export function say(text: string, o: { rate: number; voiceURI: string; volume?: 
     const u = new SpeechSynthesisUtterance(text);
     u.rate = o.rate;
     u.volume = o.volume ?? 1;
-    u.lang = 'en';
+    u.lang = 'en-US'; // a bare 'en' finds no voice on some iPhones until the voice list has loaded, so early calls were silent
     const v = pick(o.voiceURI);
     if (v) {
       u.voice = v;
