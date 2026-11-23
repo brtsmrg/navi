@@ -84,13 +84,13 @@ interface Queued {
   text: string;
   o: { rate: number; volume?: number; onStart?: () => void; onDone?: () => void };
 }
-let queued: Queued | undefined;
+let queued: Queued[] = [];
 /** audio-context time at which the call now playing ends */
 let endsAt = 0;
 
 export function stopClips(): void {
   clearTimeout(doneTimer);
-  queued = undefined;
+  queued = [];
   endsAt = 0;
   for (const s of active) {
     try {
@@ -130,9 +130,8 @@ function schedule(ctx: AudioContext, text: string, o: Queued['o']): boolean {
     o.onDone?.();
     // keep the list of live sources short
     active = [];
-    if (queued) {
-      const q = queued;
-      queued = undefined;
+    const q = queued.shift();
+    if (q) {
       const c = audioContext();
       if (c) schedule(c, q.text, q.o);
     }
@@ -143,14 +142,22 @@ function schedule(ctx: AudioContext, text: string, o: Queued['o']): boolean {
 /**
  * Speak a call from recordings. Returns false when it cannot (voice off, not loaded yet, no audio
  * context, or a word with no recording), so the caller can use the phone's voice instead.
- * A call that arrives while another is still playing waits its turn (only the newest waiting call is
- * kept, an older one is stale); `interrupt` cuts the current call off, for urgent warnings.
+ * A call that arrives while another is still playing waits its turn, in order; `interrupt` cuts the current call off, for urgent warnings.
  */
 export function playClips(text: string, o: { rate: number; volume?: number; interrupt?: boolean; onStart?: () => void; onDone?: () => void }): boolean {
   const w = wanted();
   if (!w.on) return false;
   if (pack?.id !== w.id) {
-    void loadVoicePack(w.id);
+    const pend = loading?.id === w.id ? loading.p : undefined;
+    const p = pend ?? loadVoicePack(w.id);
+    // the voice is still loading (the first seconds of a ride): hold the call and speak it the moment it is ready,
+    // instead of falling back to the phone voice, which iPhones often drop
+    if (pend || !failed) {
+      void p.then((ok) => {
+        if (ok) playClips(text, o);
+      });
+      return true;
+    }
     return false;
   }
   const ctx = audioContext();
@@ -158,7 +165,8 @@ export function playClips(text: string, o: { rate: number; volume?: number; inte
   if (!planClips(text, (k) => k in pack!.clips)) return false;
   const playing = endsAt > ctx.currentTime;
   if (playing && !o.interrupt) {
-    queued = { text, o };
+    queued.push({ text, o });
+    if (queued.length > 4) queued.shift(); // a long backlog is stale: drop the oldest
     return true;
   }
   stopClips();

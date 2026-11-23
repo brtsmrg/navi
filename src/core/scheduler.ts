@@ -167,7 +167,7 @@ export class CallScheduler {
       if (dist0 > vEff * (o.leadSec + estMs / 1000)) return null; // not yet
 
       this.i += group.length;
-      this.busyUntil = nowMs + estMs + 250;
+      this.busyUntil = nowMs + estMs + 450; // 450 covers the corner tone that sounds before the voice
       for (const n of group) {
         this.called.push(n.id);
         this.pending.push(n);

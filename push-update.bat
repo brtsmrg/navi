@@ -14,18 +14,13 @@ if not exist ".git" (
   echo This folder is not the Navi repo: %CD%
   goto :end
 )
-rem old word-only voice packs are replaced by the George sentence pack
-for %%V in (michael emma heart) do (
-  if exist "public\voices\%%V.mp3" del /q "public\voices\%%V.mp3" >> "%LOG%" 2>&1
-  if exist "public\voices\%%V.json" del /q "public\voices\%%V.json" >> "%LOG%" 2>&1
-)
 git add -A >> "%LOG%" 2>&1
 git diff --cached --quiet
 if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo Natural co-driver voice: whole phrases recorded as one take, calls no longer cut off
+> "%TEMP%\navi-update-msg.txt" echo Demo runs in real time and calls queue in order, so no step is skipped
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7

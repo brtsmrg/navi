@@ -269,7 +269,7 @@ function RouteView() {
     guarded(() => {
       if (tripId) markStarted(tripId);
       const countdownSec = settings.stageView ? 5 : 0;
-      startRide(stage, kind === 'gps' ? { kind: 'gps', countdownSec } : { kind: 'demo', cruiseKmh: 90, warp: 2, countdownSec });
+      startRide(stage, kind === 'gps' ? { kind: 'gps', countdownSec } : { kind: 'demo', cruiseKmh: 90, warp: 1, countdownSec });
     });
 
   const share = async () => {
