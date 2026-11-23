@@ -107,6 +107,8 @@ export interface Note {
   /** Normalised road sketch: flat [x0,y0,x1,y1,...] in 0..1, entry heading up. */
   glyph?: number[];
   limitKmh?: number;
+  /** Driver's own words, added to the call ('watch the gravel'). Set by pacenote edits. */
+  extra?: string;
 }
 
 export interface StageStats {

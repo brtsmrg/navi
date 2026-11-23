@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import type { DialectId, DriverProfile, LngLat, Stage, UnitSystem } from '@/core';
+import { applyEdits, type DialectId, type DriverProfile, type LngLat, type Stage, type UnitSystem } from '@/core';
+import { editsFor } from '@/lib/edits';
 import type { Place } from '@/providers/photon';
 
 export type Readout = 'both' | 'full' | 'short';
+export type Theme = 'dark' | 'light' | 'auto';
 
 export interface RouteAvoid {
   highways: boolean;
@@ -26,6 +28,10 @@ export interface Settings {
   muted: boolean;
   safetyAccepted: boolean;
   stageAttested: boolean;
+  /** Look of the planning screens. The drive screens are always dark. */
+  theme: Theme;
+  /** Big three-note display for racing and closed courses. */
+  stageView: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -42,6 +48,8 @@ const DEFAULTS: Settings = {
   muted: false,
   safetyAccepted: false,
   stageAttested: false,
+  stageView: false,
+  theme: 'dark',
 };
 
 const KEY = 'navi.settings.v2';
@@ -96,6 +104,15 @@ interface AppState {
   setPlan: (p: Partial<{ busy: boolean; err: string }>) => void;
   tripId: string | null;
   setTripId: (id: string | null) => void;
+  /** One plain line about what just happened to the route (for example a shared link opened). */
+  notice: string;
+  setNotice: (n: string) => void;
+}
+
+/** Put the driver's saved edits on a freshly planned stage. The engine's own notes stay in baseNotes. */
+export function withEdits(stage: Stage): Stage {
+  const base = stage.baseNotes ?? stage.notes;
+  return { ...stage, baseNotes: base, notes: applyEdits(base, editsFor(stage.key)) };
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -106,7 +123,7 @@ export const useApp = create<AppState>((set, get) => ({
     set({ settings });
   },
   stage: null,
-  setStage: (stage) => set({ stage }),
+  setStage: (stage) => set({ stage: stage ? withEdits(stage) : null }),
   from: null,
   to: null,
   setFrom: (from) => set({ from }),
@@ -125,6 +142,8 @@ export const useApp = create<AppState>((set, get) => ({
   setPlan: (p) => set({ plan: { ...get().plan, ...p } }),
   tripId: null,
   setTripId: (tripId) => set({ tripId }),
+  notice: '',
+  setNotice: (notice) => set({ notice }),
 }));
 
 /* ---- live ride state (updated several times a second) ---- */
@@ -141,6 +160,8 @@ export interface RideState {
   gpsError: string | null;
   /** Shown in the ride HUD when sound will not come from a voice. */
   audioNote: string | null;
+  /** Seconds left in the stage-start countdown, or null. */
+  countdown: number | null;
 }
 
 export const useRideStore = create<RideState>(() => ({
@@ -155,4 +176,5 @@ export const useRideStore = create<RideState>(() => ({
   warp: 1,
   gpsError: null,
   audioNote: null,
+  countdown: null,
 }));

@@ -2,3 +2,4 @@ version: 1
 bundleID: app.navi.copilot.xtool
 product: Navi
 infoPath: Navi-Info.plist
+iconPath: Resources/AppIcon.png

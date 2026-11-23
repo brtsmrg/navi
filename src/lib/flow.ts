@@ -2,6 +2,8 @@ import { useApp } from '@/lib/store';
 import { useLibrary, type Trip } from '@/lib/library';
 import { planWaypoints } from '@/lib/plan';
 import { reversePlace, type Place } from '@/providers/photon';
+import type { SharePayload } from '@/providers/share';
+import { useEdits } from '@/lib/edits';
 
 export const HERE: Place = { id: 'here', title: 'My location', subtitle: '', lngLat: [0, 0] };
 
@@ -89,6 +91,7 @@ export function clearRoute(): void {
   st.setVia([]);
   st.setTripId(null);
   st.setPlan({ busy: false, err: '' });
+  st.setNotice('');
 }
 
 export function fmtDuration(s: number | undefined): string {
@@ -129,4 +132,36 @@ export async function loadSampleRoad(): Promise<void> {
   st.setTab('explore');
   st.setPlan({ err: '' });
   await planRoute();
+}
+
+/** Open a route from a share link: show the places, route them, and add the sender's pacenote edits where they fit. */
+export async function openSharedRoute(p: SharePayload): Promise<void> {
+  const st = useApp.getState();
+  const [a, b] = p.names ?? ['Shared start', 'Shared destination'];
+  const pts = p.waypoints;
+  const mk = (id: string, title: string, lngLat: [number, number], subtitle = ''): Place => ({ id, title, subtitle, lngLat });
+  st.setStage(null);
+  st.setTripId(null);
+  st.setNotice('');
+  st.setFrom(mk('shared-a', a, pts[0], 'From a shared link'));
+  st.setTo(mk('shared-b', b, pts[pts.length - 1]));
+  st.setVia(pts.slice(1, -1).map((c, i) => mk(`shared-v${i}`, `Stop ${i + 1}`, c)));
+  st.setTab('explore');
+  st.setPlan({ err: '' });
+  await planRoute();
+  const stage = useApp.getState().stage;
+  if (!stage) return; // planRoute already said why
+  if (!p.edits || !p.key) return useApp.getState().setNotice('Shared route opened.');
+  if (p.key !== stage.key) {
+    return useApp.getState().setNotice('Shared route opened. It came out a little different here, so the sender’s pacenote edits were not added.');
+  }
+  const mine = useEdits.getState().byRoute[stage.key] ?? {};
+  let added = 0;
+  for (const [id, e] of Object.entries(p.edits)) {
+    if (mine[id]) continue; // never overwrite what this driver already changed
+    useEdits.getState().put(stage.key, id, e);
+    added++;
+  }
+  useApp.getState().setStage(stage);
+  useApp.getState().setNotice(added > 0 ? `Shared route opened with ${added} pacenote edit${added === 1 ? '' : 's'} from the sender.` : 'Shared route opened.');
 }

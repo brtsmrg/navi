@@ -3,6 +3,7 @@ import { Bookmark, Briefcase, ChevronDown, ChevronLeft, Clock, Coffee, Fuel, Hom
 import { generateStage, type Stage } from '@/core';
 import { parseGpx } from '@/providers/gpx';
 import { buildShareUrl } from '@/providers/share';
+import { useEdits } from '@/lib/edits';
 import { chooseDestination, clearRoute, loadSampleRoad, SAMPLE_FROM, fmtArrival, fmtDistance, fmtDuration, locateHere, planRoute } from '@/lib/flow';
 import { useLibrary } from '@/lib/library';
 import { useApp } from '@/lib/store';
@@ -254,6 +255,9 @@ function RouteView() {
   const { toggleFav, pinTrip, markStarted } = useLibrary();
   const [gate, setGate] = useState<null | (() => void)>(null);
   const [copied, setCopied] = useState(false);
+  const [manual, setManual] = useState('');
+  const notice = useApp((s) => s.notice);
+  const setNotice = useApp((s) => s.setNotice);
   const [notes, setNotes] = useState(false);
   if (!stage) return null;
 
@@ -264,26 +268,44 @@ function RouteView() {
   const go = (kind: 'gps' | 'demo') =>
     guarded(() => {
       if (tripId) markStarted(tripId);
-      startRide(stage, kind === 'gps' ? { kind: 'gps' } : { kind: 'demo', cruiseKmh: 90, warp: 2 });
+      const countdownSec = settings.stageView ? 5 : 0;
+      startRide(stage, kind === 'gps' ? { kind: 'gps', countdownSec } : { kind: 'demo', cruiseKmh: 90, warp: 2, countdownSec });
     });
 
   const share = async () => {
-    if (!from || !to) return;
-    const url = buildShareUrl(location.origin + location.pathname.replace(/\/$/, ''), { waypoints: [from.lngLat, ...via.map((v) => v.lngLat), to.lngLat], dialect: settings.dialect });
+    if (!from || !to || !stage) return;
+    const edits = stage.key ? useEdits.getState().byRoute[stage.key] : undefined;
+    const url = buildShareUrl(location.origin + location.pathname.replace(/\/$/, ''), {
+      waypoints: [from.lngLat, ...via.map((v) => v.lngLat), to.lngLat],
+      dialect: settings.dialect,
+      names: [from.title, to.title],
+      edits,
+      key: stage.key,
+    });
+    const text = `${from.title} to ${to.title}: ${fmtDistance(stage.stats.distanceM, settings.units)}, ${stage.stats.cornerCount} corners, with pacenotes in Navi.`;
     try {
-      if (navigator.share) await navigator.share({ title: 'Navi route', url });
-      else {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+      if (navigator.share) {
+        await navigator.share({ title: 'Navi route', text, url });
+        return;
       }
-    } catch {
-      /* share sheet dismissed */
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setManual('');
+      setTimeout(() => setCopied(false), 2500);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return; // share sheet dismissed
+      setManual(url); // the phone blocked copying: show the link so it can be held and copied
     }
   };
 
   return (
     <div className="space-y-3 pb-4">
+      {notice && (
+        <p role="status" className="flex items-start justify-between gap-2 rounded-xl bg-raise p-3 text-sm">
+          <span>{notice}</span>
+          <button aria-label="Dismiss message" onClick={() => setNotice('')} className="-m-2 grid size-11 shrink-0 place-items-center text-mute"><X size={16} /></button>
+        </p>
+      )}
       <div className="flex items-center gap-1">
         <button aria-label="Back" onClick={clearRoute} className="grid size-11 shrink-0 place-items-center rounded-full bg-raise">
           <ChevronLeft size={22} />
@@ -304,7 +326,7 @@ function RouteView() {
 
       {isDemoRoad ? (
         <>
-          <Button variant="primary" className="w-full bg-go text-bg hover:bg-go/90" onClick={() => go('demo')}>
+          <Button variant="primary" className="w-full bg-go text-dark hover:bg-go/90" onClick={() => go('demo')}>
             <Play size={18} fill="currentColor" /> Watch the demo drive
           </Button>
           <p className="px-1 text-sm text-mute">This is a real road far from you (the Tail of the Dragon, USA), so GPS has nothing to follow. The demo drives it for you and calls every corner.</p>
@@ -312,7 +334,7 @@ function RouteView() {
       ) : (
         <>
           <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-            <Button variant="primary" className="bg-go text-bg hover:bg-go/90" onClick={() => go('gps')}>
+            <Button variant="primary" className="bg-go text-dark hover:bg-go/90" onClick={() => go('gps')}>
               <Play size={18} fill="currentColor" /> Start with GPS
             </Button>
             {trip && (
@@ -322,10 +344,16 @@ function RouteView() {
             )}
             {from && to && (
               <Button variant="raise" aria-label="Share route link" onClick={share}>
-                <Share2 size={18} /> {copied ? 'Copied' : ''}
+                <Share2 size={18} /> {copied ? 'Link copied' : ''}
               </Button>
             )}
           </div>
+          {manual && (
+            <div className="space-y-1">
+              <p className="px-1 text-sm text-mute">This phone would not copy it for you. Press and hold the link, choose Select all, then Copy.</p>
+              <input readOnly value={manual} aria-label="Share link" onFocus={(e) => e.currentTarget.select()} className="min-h-12 w-full rounded-xl bg-bg px-3 text-sm text-ink ring-1 ring-line" />
+            </div>
+          )}
           <Button variant="raise" className="w-full" onClick={() => go('demo')}>
             Watch a demo drive (no GPS)
           </Button>
@@ -344,7 +372,7 @@ function RouteView() {
         <span>Pacenotes ({stage.notes.filter((n) => n.kind !== 'finish').length})</span>
         <ChevronDown size={18} className={cn('transition', notes && 'rotate-180')} />
       </button>
-      {notes && <NotesList notes={stage.notes} />}
+      {notes && <NotesList stage={stage} />}
 
       <SafetyGate
         open={gate !== null}

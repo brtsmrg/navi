@@ -125,3 +125,28 @@ describe('nearby search helpers', () => {
     expect(CATEGORIES.every((c) => c.tags.every((t) => /^[a-z_]+:[a-z_]+$/.test(t)))).toBe(true);
   });
 });
+
+describe('share links with names and pacenote edits', () => {
+  const w: [number, number][] = [[-83.93, 35.46], [-83.99, 35.52]];
+  it('round-trips names and edits', () => {
+    const url = buildShareUrl('https://example.com', { waypoints: w, names: ['Deals Gap', 'Tabcat Creek'], edits: { c3: { severity: 1, extra: 'watch the gravel' } }, key: 'k1' });
+    const back = parseShareHash(url.slice(url.indexOf('#')));
+    expect(back?.names).toEqual(['Deals Gap', 'Tabcat Creek']);
+    expect(back?.edits).toEqual({ c3: { severity: 1, extra: 'watch the gravel' } });
+    expect(back?.key).toBe('k1');
+  });
+
+  it('drops unknown or unsafe edit fields from a link', () => {
+    const bad = btoa(JSON.stringify({ c1: { severity: 99, extra: '<img src=x>', evil: true }, c2: { severity: 2 } })).replace(/=+$/, '');
+    const url = buildShareUrl('https://example.com', { waypoints: w });
+    const back = parseShareHash(`${url.slice(url.indexOf('#'))}&e=${bad}&k=z`);
+    expect(back?.edits).toEqual({ c1: { extra: 'img src=x' }, c2: { severity: 2 } });
+  });
+
+  it('ignores damaged edit data but still opens the route', () => {
+    const url = buildShareUrl('https://example.com', { waypoints: w });
+    const back = parseShareHash(`${url.slice(url.indexOf('#'))}&e=%%%&k=z`);
+    expect(back?.waypoints.length).toBe(2);
+    expect(back?.edits).toBeUndefined();
+  });
+});

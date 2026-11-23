@@ -19,7 +19,7 @@ export function TurnArrow({ note, size = 88, word = true }: { note: Note; size?:
     <div
       aria-hidden
       style={{ width: size, height: size, backgroundColor: bg }}
-      className={cn('flex shrink-0 flex-col items-center justify-center rounded-2xl text-bg', color)}
+      className={cn('flex shrink-0 flex-col items-center justify-center rounded-2xl text-dark', color)}
     >
       <Icon size={icon} strokeWidth={3} />
       {word && size >= 64 && <span className="mt-0.5 font-display text-sm font-bold leading-none tracking-wide">{label.slice(0, 9)}</span>}

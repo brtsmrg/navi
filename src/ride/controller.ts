@@ -89,11 +89,44 @@ export function testSound(): void {
   setTimeout(() => say('Sound check. Left three, right three.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true, onStart: () => useRideStore.setState({ audioNote: null }) }), 950);
 }
 
+/** Say the last call again, on demand. Runs inside a tap. */
+export function repeatLast(): void {
+  const { lastCall } = useRideStore.getState();
+  const { settings } = useApp.getState();
+  if (!lastCall || settings.muted) return;
+  say(lastCall.text, { rate: settings.speechRate, voiceURI: settings.voiceURI, volume: settings.volume, interrupt: true });
+}
+
 export interface RideOptions {
   kind: 'gps' | 'demo';
+  /** Seconds to count down before the stage starts (stage view). 0 or missing starts at once. */
+  countdownSec?: number;
   /** demo only */
   cruiseKmh?: number;
   warp?: number;
+}
+
+let cdTimers: ReturnType<typeof setTimeout>[] = [];
+
+/** Stage start: spoken and beeped count, then the ride begins on "Go". */
+function runCountdown(sec: number, done: () => void) {
+  for (let i = 0; i <= sec; i++) {
+    cdTimers.push(
+      setTimeout(() => {
+        if (!useRideStore.getState().active) return;
+        const left = sec - i;
+        const st = useApp.getState().settings;
+        useRideStore.setState({ countdown: left > 0 ? left : null });
+        if (left > 0) {
+          if (st.cues && !st.muted) cue(undefined, 4, st.volume);
+          if (!st.muted) say(String(left), { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
+        } else {
+          if (!st.muted) say('Go', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
+          done();
+        }
+      }, 1800 + i * 1000),
+    );
+  }
 }
 
 export function startRide(stage: Stage, o: RideOptions): void {
@@ -107,79 +140,89 @@ export function startRide(stage: Stage, o: RideOptions): void {
   stopAwake = keepAwake();
   unsub = useApp.subscribe((st, prev) => {
     if (st.settings !== prev.settings) scheduler?.setOptions(schedulerOptions());
+    // a pacenote edit made during the ride changes the calls still to come
+    if (st.stage !== prev.stage && st.stage && stageRef && st.stage.key === stageRef.key) {
+      stageRef = st.stage;
+      scheduler?.setNotes(st.stage.notes, useRideStore.getState().s);
+    }
     if (st.settings.muted && !prev.settings.muted) stopSpeaking();
   });
 
   const warp = o.warp ?? 1;
   useRideStore.setState({
     active: true, kind: o.kind, s: 0, v: 0, lngLat: stage.route.coords[0], bearing: 0,
-    lastCall: null, offRoute: false, warp, gpsError: null, audioNote: null,
+    lastCall: null, offRoute: false, warp, gpsError: null, audioNote: null, countdown: null,
   });
   announceReady();
 
-  const handle = (s: number, v: number, nowMs: number) => {
-    const call = scheduler?.update(s, v, nowMs);
-    if (call) emit(call);
-    if (s >= tracker.length - 5) finishSoon();
-  };
+  const begin = () => {
+    const handle = (s: number, v: number, nowMs: number) => {
+      const call = scheduler?.update(s, v, nowMs);
+      if (call) emit(call);
+      if (s >= tracker.length - 5) finishSoon();
+    };
 
-  if (o.kind === 'demo') {
-    const speeds = speedProfile(stage.path, { cruiseMps: (o.cruiseKmh ?? 80) / 3.6, profile: 'road' });
-    let s = 0;
-    let simMs = 0;
-    const tickMs = 100;
-    timer = setInterval(() => {
-      const i = Math.min(stage.path.n - 1, Math.floor(s / stage.path.ds));
-      const v = speeds[i];
-      s = Math.min(tracker.length, s + v * (tickMs / 1000) * warp);
-      simMs += tickMs * warp;
-      const p = tracker.pointAt(s);
-      useRideStore.setState({ s, v, lngLat: p.lngLat, bearing: p.bearingDeg });
-      handle(s, v, simMs);
-    }, tickMs);
-    return;
-  }
+    if (o.kind === 'demo') {
+      const speeds = speedProfile(stage.path, { cruiseMps: (o.cruiseKmh ?? 80) / 3.6, profile: 'road' });
+      let s = 0;
+      let simMs = 0;
+      const tickMs = 100;
+      timer = setInterval(() => {
+        const i = Math.min(stage.path.n - 1, Math.floor(s / stage.path.ds));
+        const v = speeds[i];
+        s = Math.min(tracker.length, s + v * (tickMs / 1000) * warp);
+        simMs += tickMs * warp;
+        const p = tracker.pointAt(s);
+        useRideStore.setState({ s, v, lngLat: p.lngLat, bearing: p.bearingDeg });
+        handle(s, v, simMs);
+      }, tickMs);
+      return;
+    }
 
-  if (!('geolocation' in navigator)) {
-    useRideStore.setState({ gpsError: 'This device has no location sensor.' });
-    return;
-  }
-  let hint: number | undefined;
-  let last: { lng: number; lat: number; t: number } | undefined;
-  let vSmooth = 0;
-  let offSince = 0;
-  watchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const { longitude: lng, latitude: lat, speed, heading } = pos.coords;
-      const t = pos.timestamp;
-      let v = speed ?? NaN;
-      if (!Number.isFinite(v) && last) {
-        const dt = (t - last.t) / 1000;
-        if (dt > 0) {
-          const dx = (lng - last.lng) * 111320 * Math.cos((lat * Math.PI) / 180);
-          const dy = (lat - last.lat) * 110540;
-          v = Math.hypot(dx, dy) / dt;
+    if (!('geolocation' in navigator)) {
+      useRideStore.setState({ gpsError: 'This device has no location sensor.' });
+      return;
+    }
+    let hint: number | undefined;
+    let last: { lng: number; lat: number; t: number } | undefined;
+    let vSmooth = 0;
+    let offSince = 0;
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { longitude: lng, latitude: lat, speed, heading } = pos.coords;
+        const t = pos.timestamp;
+        let v = speed ?? NaN;
+        if (!Number.isFinite(v) && last) {
+          const dt = (t - last.t) / 1000;
+          if (dt > 0) {
+            const dx = (lng - last.lng) * 111320 * Math.cos((lat * Math.PI) / 180);
+            const dy = (lat - last.lat) * 110540;
+            v = Math.hypot(dx, dy) / dt;
+          }
         }
-      }
-      if (!Number.isFinite(v)) v = 0;
-      vSmooth = vSmooth === 0 ? v : 0.6 * vSmooth + 0.4 * v;
-      last = { lng, lat, t };
-      const snap = tracker.snap(lng, lat, hint);
-      hint = snap.s;
-      const off = snap.offsetM > 40;
-      if (off && !offSince) offSince = t;
-      if (!off) offSince = 0;
-      const p = tracker.pointAt(snap.s);
-      useRideStore.setState({
-        s: snap.s, v: vSmooth, lngLat: [lng, lat], bearing: heading ?? p.bearingDeg,
-        offRoute: offSince > 0 && t - offSince > 5000,
-        gpsError: snap.offsetM > 2000 ? `You are ${(snap.offsetM / 1000).toFixed(snap.offsetM > 20000 ? 0 : 1)} km from this road, so there is nothing to call yet. Stop, then tap Watch a demo drive to hear how Navi sounds.` : null,
-      });
-      handle(snap.s, vSmooth, t);
-    },
-    (err) => useRideStore.setState({ gpsError: err.code === 1 ? 'Location is blocked. Allow it in your browser settings.' : 'Waiting for a GPS fix…' }),
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-  );
+        if (!Number.isFinite(v)) v = 0;
+        vSmooth = vSmooth === 0 ? v : 0.6 * vSmooth + 0.4 * v;
+        last = { lng, lat, t };
+        const snap = tracker.snap(lng, lat, hint);
+        hint = snap.s;
+        const off = snap.offsetM > 40;
+        if (off && !offSince) offSince = t;
+        if (!off) offSince = 0;
+        const p = tracker.pointAt(snap.s);
+        useRideStore.setState({
+          s: snap.s, v: vSmooth, lngLat: [lng, lat], bearing: heading ?? p.bearingDeg,
+          offRoute: offSince > 0 && t - offSince > 5000,
+          gpsError: snap.offsetM > 2000 ? `You are ${(snap.offsetM / 1000).toFixed(snap.offsetM > 20000 ? 0 : 1)} km from this road, so there is nothing to call yet. Stop, then tap Watch a demo drive to hear how Navi sounds.` : null,
+        });
+        handle(snap.s, vSmooth, t);
+      },
+      (err) => useRideStore.setState({ gpsError: err.code === 1 ? 'Location is blocked. Allow it in your browser settings.' : 'Waiting for a GPS fix…' }),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+    );
+  };
+  const cd = o.countdownSec ?? 0;
+  if (cd > 0) runCountdown(cd, begin);
+  else begin();
 }
 
 let finishing = false;
@@ -195,6 +238,8 @@ function finishSoon() {
 export function stopRide(): void {
   if (timer) clearInterval(timer);
   timer = undefined;
+  cdTimers.forEach(clearTimeout);
+  cdTimers = [];
   if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
   watchId = undefined;
   stopAwake?.();
@@ -205,5 +250,5 @@ export function stopRide(): void {
   stopSpeaking();
   releaseAudio();
   stageRef = undefined;
-  useRideStore.setState({ active: false });
+  useRideStore.setState({ active: false, countdown: null });
 }

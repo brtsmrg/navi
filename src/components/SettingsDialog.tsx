@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Upload, Volume2 } from 'lucide-react';
 import { DIALECTS, type DialectId, type DriverProfile, type UnitSystem } from '@/core';
 import { SEV_COLOR } from '@/lib/cn';
-import { useApp, type Readout } from '@/lib/store';
+import { useApp, type Readout, type Theme } from '@/lib/store';
 import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
 import { audioReport, testCues, unlockAudio } from '@/lib/audio';
@@ -153,6 +153,11 @@ export function SettingsDialog() {
           <p className="text-sm text-mute">Colour shows how sharp the turn is. The arrow and the word LEFT or RIGHT show which way.</p>
         </Section>
 
+        <Section title="Look">
+          <Segmented<Theme> label="Theme" value={st.theme} onChange={(theme) => set({ theme })} options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'auto', label: 'Match phone' }]} />
+          <p className="text-sm text-mute">The drive screens and the map always stay dark so the route and the next turn stand out.</p>
+        </Section>
+
         <Section title="Route">
           <Toggle label="Avoid motorways" checked={st.avoid.highways} onChange={(highways) => set({ avoid: { ...st.avoid, highways } })} />
           <Toggle label="Avoid tolls" checked={st.avoid.tolls} onChange={(tolls) => set({ avoid: { ...st.avoid, tolls } })} />
@@ -161,6 +166,8 @@ export function SettingsDialog() {
         </Section>
 
         <Section title="Driving">
+          <Toggle label="Stage view" checked={st.stageView} onChange={(stageView) => set({ stageView })} />
+          <p className="text-sm text-mute">Black screen with the next call huge, the three after it listed, and a 5-4-3-2-1 count before you start. You can switch it on and off while driving.</p>
           <Segmented<DriverProfile> label="Driver profile" value={st.profile} onChange={(profile) => set({ profile, stageAttested: profile === 'stage' ? st.stageAttested : false })} options={PROFILES.map((p) => ({ value: p.value, label: p.label }))} />
           <p className="text-sm text-mute">{profile?.blurb}</p>
           {st.profile === 'stage' && !st.stageAttested && (

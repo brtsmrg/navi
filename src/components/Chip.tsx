@@ -9,7 +9,7 @@ export function CallLabel({ note, opts, big = false }: { note: Note; opts: Phras
   const sevColor = note.severity ? SEV_COLOR[note.severity] : undefined;
   const dirColor = sevColor ? '' : 'text-ink';
   return (
-    <div className={cn('flex items-baseline gap-1.5 font-display font-bold leading-none', big ? 'text-7xl' : 'text-3xl')}>
+    <div className={cn('flex items-baseline gap-1.5 font-display font-bold leading-none', sevColor && 'w-fit rounded-xl bg-dark px-2.5 py-1.5', big ? 'text-7xl' : 'text-3xl')}>
       {l.dir && <span style={{ color: sevColor }} className={dirColor}>{l.dir === 'L' ? '‹' : '›'}</span>}
       {l.dir && <span style={{ color: sevColor }} className={dirColor}>{l.dir}</span>}
       <span style={{ color: sevColor }} className={sevColor ? '' : 'text-ink'}>

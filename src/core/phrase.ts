@@ -39,8 +39,13 @@ const PLAIN_WORD: Record<Severity, string> = {
   6: 'slight',
 };
 
-/** Words for one note (no distances). */
+/** Words for one note (no distances), with any words the driver added. */
 export function noteText(n: Note, o: PhraseOptions): string {
+  const base = baseNoteText(n, o);
+  return n.extra && n.kind !== 'finish' ? `${base}, ${n.extra}` : base;
+}
+
+function baseNoteText(n: Note, o: PhraseOptions): string {
   const plain = o.dialect === 'plain';
   const parts: string[] = [];
 

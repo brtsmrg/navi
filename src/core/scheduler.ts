@@ -58,9 +58,17 @@ export class CallScheduler {
   readonly alerts: string[] = [];
 
   constructor(
-    private readonly notes: Note[],
+    private notes: Note[],
     private o: SchedulerOptions = DEFAULT_SCHEDULER,
   ) {}
+
+  /** Swap in edited notes mid-ride. Calls already made stay made; the next call comes from the new list. */
+  setNotes(notes: Note[], s: number) {
+    const next = notes.findIndex((n) => n.s >= s - 5);
+    this.notes = notes;
+    this.i = next < 0 ? notes.length : next;
+    this.pending = [];
+  }
 
   setOptions(o: Partial<SchedulerOptions>) {
     this.o = { ...this.o, ...o };

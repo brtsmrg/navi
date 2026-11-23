@@ -25,6 +25,8 @@ Phone behaviour to know about:
 3. Copy the APK to the phone, open it, and allow installs from that source when asked.
 Debug APKs are for testing only. Release signing comes later (docs/ROADMAP.md).
 
+Both native builds use the Navi icon and a black splash with the Navi logo: `scripts/native-patch.mjs` copies the artwork from `brand/native/` (made by `brand/make-logo.py`) over the default Capacitor files. Not yet seen on a real device.
+
 ## 3. iPhone test IPA (no Mac needed)
 Apple only runs apps signed to a device. The workflow builds the app on a free GitHub macOS machine, unsigned; you sign it on your own phone with your free Apple ID.
 1. **Actions > iPhone test IPA (unsigned) > Run workflow**, then download **Navi-iphone-unsigned**.
@@ -38,9 +40,10 @@ Follow the official install page for Linux and Windows (xtool.sh, "Installation:
 2. Install xtool, then run `xtool setup`. It asks for your Apple ID and for the Xcode download (`Xcode.xip`) from Apple's developer site. **You** must sign in; nobody else can do this for you.
 3. Connect the iPhone by USB (WSL needs usbipd-win to see it), unlock it and tap **Trust**. Turn on **Developer Mode** (Settings > Privacy & Security).
 4. In the repo: `npm ci && npm run xtool:sync`, then `cd xtool-shell && xtool dev`.
+App icon: `xtool.yml` points at `Resources/AppIcon.png` (the Navi icon, 1024 px). The `iconPath` key comes from third-party xtool guides, not the official page, so check it on the first build.
 Status: the Swift files and `xtool.yml` follow xtool's documented project layout but have **not been compiled** yet. Expect a small fix or two on the first build. If it fights you, use route 3.
 Open question: whether location works inside the `navi://` scheme of the xtool shell is unverified. Capacitor (routes 2 and 3) uses the common, proven pattern.
 
 ## What has and has not been verified
-Verified in the build environment: type check, lint, 49 unit tests, production build, both native projects generate, the location-permission patch applies, the app runs without console errors on emulated iPhone 15 and Pixel 7 (Chromium engine), no horizontal overflow, all touch targets 44 px or larger.
+Verified in the build environment: type check, lint, 83 unit tests, production build, both native projects generate, the location-permission patch applies, the app runs without console errors on emulated iPhone 15 and Pixel 7 (Chromium engine), no horizontal overflow, all touch targets 44 px or larger.
 Not verified (needs a real device or CI): the CI workflows running to green, Safari/WebKit rendering, iOS speech voices, GPS on a moving phone, the xtool build.
