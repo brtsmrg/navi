@@ -20,7 +20,7 @@ if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo Traffic arrows on both sides in the turn colours, original turn colours restored
+> "%TEMP%\navi-update-msg.txt" echo Voice: retry a spoken call that the phone drops, note when silent
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7

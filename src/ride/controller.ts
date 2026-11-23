@@ -39,7 +39,7 @@ function emit(call: Call) {
     cue(call.kind === 'alert' ? undefined : side, call.kind === 'alert' ? 1 : (first?.severity ?? 4), settings.volume);
     delay = 260; // let the tone finish before the voice starts
   }
-  const speak = () => say(text, { rate: settings.speechRate, voiceURI: settings.voiceURI, volume: settings.volume, interrupt });
+  const speak = () => say(text, { rate: settings.speechRate, voiceURI: settings.voiceURI, volume: settings.volume, interrupt, onFail: () => { if (!useRideStore.getState().audioNote) useRideStore.setState({ audioNote: NO_SOUND }); } });
   if (delay) setTimeout(speak, delay);
   else speak();
 }
@@ -69,7 +69,7 @@ function announceReady() {
   let heard = false;
   const speakIt = () => {
     const st = useApp.getState().settings;
-    say('Navi is on.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, onStart: () => (heard = true) });
+    say('Navi is on.', { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, onStart: () => (heard = true), noRetry: true });
   };
   // Speak inside the tap, always. iOS lists its voices late (often empty on first tap) and only lets
   // the first utterance start from a gesture, so waiting for voices would lose the permission.

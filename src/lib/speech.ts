@@ -49,14 +49,14 @@ export const lastSpeechError = () => lastError;
 export let live: SpeechSynthesisUtterance | undefined;
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
-export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void; onStart?: () => void }): void {
+export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void; onStart?: () => void; onFail?: () => void; noRetry?: boolean }): void {
   if (!speechSupported()) return;
   const synth = window.speechSynthesis;
   clearTimeout(speakTimer);
   const stale = o.interrupt || synth.pending || synth.speaking;
   // never let a backlog build up: stale calls are worse than silence
   if (stale) synth.cancel();
-  const go = () => {
+  const go = (retry: boolean) => {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = o.rate;
     u.volume = o.volume ?? 1;
@@ -66,18 +66,31 @@ export function say(text: string, o: { rate: number; voiceURI: string; volume?: 
       u.voice = v;
       u.lang = v.lang;
     }
+    let started = false;
     u.onerror = (e) => {
       if (e.error !== 'interrupted' && e.error !== 'canceled') lastError = e.error;
     };
-    u.onstart = () => o.onStart?.();
+    u.onstart = () => {
+      started = true;
+      o.onStart?.();
+    };
     u.onend = () => o.onDone?.();
     live = u;
     synth.resume(); // Chrome can be left paused after a cancel
     synth.speak(u);
+    // Some phones silently drop a call that was started from a timer. If it has not started in
+    // a moment, clear the queue and say it once more; if that fails too, tell the driver why.
+    setTimeout(() => {
+      if (started || live !== u || o.noRetry) return;
+      if (!retry) {
+        synth.cancel();
+        speakTimer = setTimeout(() => go(true), 200);
+      } else o.onFail?.();
+    }, 1500);
   };
   // speaking in the same tick as cancel() is silently dropped by Chrome and some WebKit builds
-  if (stale) speakTimer = setTimeout(go, 80);
-  else go();
+  if (stale) speakTimer = setTimeout(() => go(false), 200);
+  else go(false);
 }
 
 export function stopSpeaking(): void {
