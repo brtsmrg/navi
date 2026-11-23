@@ -23,3 +23,19 @@ export function formatDuration(sec: number): string {
   if (m < 60) return `${m} min`;
   return `${Math.floor(m / 60)} h ${m % 60} min`;
 }
+
+/** Rally trip-meter reading: always two decimals in km (or miles), like a Terratrip or Brantz. */
+export function formatTrip(m: number, units: UnitSystem): string {
+  const v = Math.max(0, m) / (units === 'imperial' ? M_PER_MI : 1000);
+  return v.toFixed(2);
+}
+
+export const tripUnit = (units: UnitSystem) => (units === 'imperial' ? 'mi' : 'km');
+
+const WINDS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+
+/** Compass heading as degrees (0 to 359) and a 16-point label. */
+export function headingLabel(bearing: number): { deg: number; wind: string } {
+  const deg = ((Math.round(bearing) % 360) + 360) % 360;
+  return { deg, wind: WINDS[Math.round(deg / 22.5) % 16] };
+}

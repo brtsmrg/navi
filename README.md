@@ -17,7 +17,7 @@ Open the URL, tap **Try a demo stage**, then **Watch a demo drive**. Voice start
 - Route options: avoid motorways, tolls or ferries; up to three stops; arrival time.
 - Turn colour shows sharpness (red = hairpin, green = easy); the arrow and the word LEFT or RIGHT show direction.
 - Edit any pacenote (tighter, easier, left or right, your own words, or skip it). Edits are saved on the phone per route and travel with a share link.
-- While driving: Repeat, Tighter, Easier, Sooner and Later buttons correct the last call. **Stage view** is a big black screen with the next call and the three after it, plus a 5-4-3-2-1 start count.
+- While driving: Repeat, Tighter, Easier, Sooner and Later buttons correct the last call. **Stage view** is a rally-computer screen: speed, heading, trip, total and distance left, the next call and the three after it, plus a 5-4-3-2-1 start count. Settings lets you pick what marks you on the map: dot, car, motorcycle, side-by-side or truck. Turn colours run from magenta (tight) to pale blue (flat).
 - Share a route as a link (place names and your pacenote edits included). No account, nothing stored on a server.
 - Dark, light or match-phone look for the planning screens; the drive screens and map stay dark.
 - Turns are shown as big arrows with plain words ("Sharp left") and spoken in plain English or rally shorthand. Optional stereo beeps (left ear = left turn) in Settings.

@@ -12,6 +12,8 @@ export interface RouteAvoid {
   ferries: boolean;
 }
 
+export type VehicleChoice = 'dot' | 'car' | 'bike' | 'utv' | 'truck';
+
 export interface Settings {
   /** On-screen turn text: words ("Sharp left"), shorthand ("L2"), or both. */
   readout: Readout;
@@ -32,6 +34,13 @@ export interface Settings {
   theme: Theme;
   /** Big three-note display for racing and closed courses. */
   stageView: boolean;
+  /** Traffic outline around the route on the map screen. Never shown in stage view. */
+  traffic: boolean;
+  /** What marks you on the map. */
+  vehicle: VehicleChoice;
+  trafficSource: 'sample' | 'tomtom' | 'here';
+  /** The user's own free key for TomTom or HERE. Stays on this device. */
+  trafficKey: string;
 }
 
 const DEFAULTS: Settings = {
@@ -49,6 +58,10 @@ const DEFAULTS: Settings = {
   safetyAccepted: false,
   stageAttested: false,
   stageView: false,
+  traffic: false,
+  vehicle: 'dot',
+  trafficSource: 'sample',
+  trafficKey: '',
   theme: 'dark',
 };
 

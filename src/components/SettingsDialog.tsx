@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, Upload, Volume2 } from 'lucide-react';
 import { DIALECTS, type DialectId, type DriverProfile, type UnitSystem } from '@/core';
-import { SEV_COLOR } from '@/lib/cn';
+import { cn, SEV_COLOR } from '@/lib/cn';
 import { useApp, type Readout, type Theme } from '@/lib/store';
 import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
 import { audioReport, testCues, unlockAudio } from '@/lib/audio';
+import { VEHICLES } from './vehicles';
 import { Button, Range, Segmented, Sheet, Toggle } from './ui';
 
 const PROFILES: { value: DriverProfile; label: string; blurb: string }[] = [
@@ -165,9 +166,29 @@ export function SettingsDialog() {
           <Segmented<UnitSystem> label="Units" value={st.units} onChange={(units) => set({ units })} options={[{ value: 'metric', label: 'km · m' }, { value: 'imperial', label: 'mi · ft' }]} />
         </Section>
 
+        <Section title="Vehicle">
+          <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label="Vehicle on the map">
+            {VEHICLES.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                role="radio"
+                aria-checked={st.vehicle === v.id}
+                aria-label={v.label}
+                onClick={() => set({ vehicle: v.id })}
+                className={cn('flex flex-col items-center gap-1 rounded-2xl border px-1 py-2 text-[11px]', st.vehicle === v.id ? 'border-ink bg-panel text-ink' : 'border-line text-mute')}
+              >
+                <span className="h-[4.5rem] w-12 rounded-xl bg-[#aeb7c2] p-1 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: v.svg }} />
+                {v.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-sm text-mute">This is what marks you on the map while you drive. It turns with your heading. Routes are planned the same for every vehicle.</p>
+        </Section>
+
         <Section title="Driving">
           <Toggle label="Stage view" checked={st.stageView} onChange={(stageView) => set({ stageView })} />
-          <p className="text-sm text-mute">Black screen with the next call huge, the three after it listed, and a 5-4-3-2-1 count before you start. You can switch it on and off while driving.</p>
+          <p className="text-sm text-mute">Black screen like a rally computer: speed, heading, trip, total and distance left, the next call huge, the three after it listed, and a 5-4-3-2-1 count before you start. You can switch it on and off while driving.</p>
           <Segmented<DriverProfile> label="Driver profile" value={st.profile} onChange={(profile) => set({ profile, stageAttested: profile === 'stage' ? st.stageAttested : false })} options={PROFILES.map((p) => ({ value: p.value, label: p.label }))} />
           <p className="text-sm text-mute">{profile?.blurb}</p>
           {st.profile === 'stage' && !st.stageAttested && (

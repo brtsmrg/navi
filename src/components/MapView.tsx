@@ -2,13 +2,15 @@ import { useEffect, useRef } from 'react';
 import { LngLatBounds, Map as MapGL, NavigationControl, setWorkerUrl, type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import type { Feature, FeatureCollection } from 'geojson';
-import { RouteTracker, type Stage } from '@/core';
+import { RouteTracker, TRAFFIC_COLOR, type Stage, type TrafficSpan } from '@/core';
 import { CONFIG } from '@/providers/config';
 import { loadStyle } from '@/lib/mapStyle';
 import { SEV_COLOR } from '@/lib/cn';
 import { useApp, useRideStore } from '@/lib/store';
 import { dropPin } from '@/lib/flow';
+import { refreshTraffic, useTraffic } from '@/lib/traffic';
 import { showProblem } from '@/lib/errorBanner';
+import { VEHICLES } from './vehicles';
 
 // Vite fingerprints the worker file; tell MapLibre where it ended up.
 setWorkerUrl(workerUrl);
@@ -44,6 +46,21 @@ function stageGeo(stage: Stage) {
     line,
     hot: { type: 'FeatureCollection', features: hot } as FeatureCollection,
     pts: { type: 'FeatureCollection', features: pts } as FeatureCollection,
+  };
+}
+
+/** One coloured line per traffic span, following the route. */
+function trafficGeo(stage: Stage | null, spans: TrafficSpan[]): FeatureCollection {
+  if (!stage || !spans.length) return EMPTY;
+  const tracker = new RouteTracker(stage.route.coords);
+  return {
+    type: 'FeatureCollection',
+    features: spans.map((sp) => {
+      const coords: [number, number][] = [];
+      for (let s = sp.from; s < sp.to; s += 20) coords.push(tracker.pointAt(s).lngLat);
+      coords.push(tracker.pointAt(sp.to).lngLat);
+      return { type: 'Feature', properties: { color: TRAFFIC_COLOR[sp.level] }, geometry: { type: 'LineString', coordinates: coords } } as Feature;
+    }),
   };
 }
 
@@ -88,7 +105,26 @@ export function MapView() {
         (map1.getSource('line') as GeoJSONSource).setData(g.line);
         (map1.getSource('hot') as GeoJSONSource).setData(g.hot);
         (map1.getSource('pts') as GeoJSONSource).setData(g.pts);
+        pushTraffic();
       };
+      const pushTraffic = () => {
+        if (!ready.current) return;
+        const st = useApp.getState();
+        const tr = useTraffic.getState();
+        const show = st.settings.traffic && !!st.stage && tr.key === (st.stage.key ?? null);
+        (map1.getSource('traffic') as GeoJSONSource).setData(show ? trafficGeo(st.stage, tr.spans) : EMPTY);
+      };
+      (map1 as unknown as { _traffic: () => void })._traffic = pushTraffic;
+      const applyVehicle = () => {
+        if (!ready.current && !map1.getLayer('me-vehicle')) return;
+        const v = useApp.getState().settings.vehicle;
+        const icon = v !== 'dot' && map1.hasImage(`v-${v}`);
+        if (icon) map1.setLayoutProperty('me-vehicle', 'icon-image', `v-${v}`);
+        map1.setLayoutProperty('me-vehicle', 'visibility', icon ? 'visible' : 'none');
+        map1.setLayoutProperty('me', 'visibility', icon ? 'none' : 'visible');
+        map1.setLayoutProperty('me-halo', 'visibility', icon ? 'none' : 'visible');
+      };
+      (map1 as unknown as { _vehicle: () => void })._vehicle = applyVehicle;
       (map1 as unknown as { _push: () => void })._push = push;
       const pushPins = () => {
         if (!ready.current) return;
@@ -123,19 +159,38 @@ export function MapView() {
         if (!ready.current && !ctl.signal.aborted) showProblem('map', new Error(`the map did not finish loading. ${lastErr}`));
       }, 10000);
       map1.on('load', () => {
-        for (const id of ['line', 'hot', 'pts', 'me', 'pins']) map1.addSource(id, { type: 'geojson', data: EMPTY });
+        for (const id of ['traffic', 'line', 'hot', 'pts', 'me', 'pins']) map1.addSource(id, { type: 'geojson', data: EMPTY });
         const round = { 'line-cap': 'round', 'line-join': 'round' } as const;
+        // traffic is a thin outline around the route so the turn-sharpness colours stay untouched
+        map1.addLayer({ id: 'route-traffic', type: 'line', source: 'traffic', layout: round, paint: { 'line-color': ['get', 'color'], 'line-width': 17 } });
         map1.addLayer({ id: 'route-casing', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#05070a', 'line-width': 11 } });
         map1.addLayer({ id: 'route', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#e9edf2', 'line-width': 5, 'line-opacity': 0.85 } });
         map1.addLayer({ id: 'route-hot', type: 'line', source: 'hot', layout: round, paint: { 'line-color': ['get', 'color'], 'line-width': 6 } });
         map1.addLayer({ id: 'notes', type: 'circle', source: 'pts', paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['get', 'r'], 'circle-stroke-color': '#05070a', 'circle-stroke-width': 2 } });
         map1.addLayer({ id: 'pins-halo', type: 'circle', source: 'pins', paint: { 'circle-color': ['get', 'color'], 'circle-opacity': 0.3, 'circle-radius': 16 } });
         map1.addLayer({ id: 'pins', type: 'circle', source: 'pins', paint: { 'circle-color': ['get', 'color'], 'circle-radius': 8, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } });
+        // the vehicle marker: drawn as an image, turned to the heading; the plain dot stays the default
+        for (const v of VEHICLES.filter((x) => x.id !== 'dot')) {
+          const img = new Image(40, 72);
+          img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = 80;
+            c.height = 144;
+            const cx = c.getContext('2d');
+            if (!cx) return;
+            cx.drawImage(img, 0, 0, 80, 144);
+            if (!map1.hasImage(`v-${v.id}`)) map1.addImage(`v-${v.id}`, cx.getImageData(0, 0, 80, 144), { pixelRatio: 2 });
+            applyVehicle();
+          };
+          img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(v.svg)}`;
+        }
         map1.addLayer({ id: 'me-halo', type: 'circle', source: 'me', paint: { 'circle-color': '#56d7e0', 'circle-opacity': 0.25, 'circle-radius': 18 } });
+        map1.addLayer({ id: 'me-vehicle', type: 'symbol', source: 'me', layout: { 'icon-image': 'v-car', 'icon-rotate': ['get', 'bearing'], 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true, visibility: 'none' } });
         map1.addLayer({ id: 'me', type: 'circle', source: 'me', paint: { 'circle-color': '#56d7e0', 'circle-radius': 7, 'circle-stroke-color': '#0b0d10', 'circle-stroke-width': 3 } });
         ready.current = true;
         push();
         pushPins();
+        pushTraffic();
         fitToStage(map1, useApp.getState().stage);
       });
     });
@@ -154,6 +209,34 @@ export function MapView() {
       if (st.from !== prev.from || st.to !== prev.to || st.via !== prev.via) redraw();
     });
   }, []);
+
+  // traffic: fetch when switched on or the route changes, refresh every few minutes, redraw when it arrives
+  const trafficOn = useApp((s) => s.settings.traffic);
+  const trafficSource = useApp((s) => s.settings.trafficSource);
+  const trafficKey = useApp((s) => s.settings.trafficKey);
+  useEffect(() => {
+    void refreshTraffic(stage);
+    if (!trafficOn || !stage) return;
+    const t = setInterval(() => void refreshTraffic(useApp.getState().stage), 3 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [stage, trafficOn, trafficSource, trafficKey]);
+  useEffect(() => {
+    const redraw = () => (map.current as (MapGL & { _traffic?: () => void }) | null)?._traffic?.();
+    const a = useTraffic.subscribe(redraw);
+    const b = useApp.subscribe((st, prev) => {
+      if (st.settings.traffic !== prev.settings.traffic) redraw();
+    });
+    return () => {
+      a();
+      b();
+    };
+  }, []);
+
+  // vehicle marker choice
+  const vehicle = useApp((s) => s.settings.vehicle);
+  useEffect(() => {
+    (map.current as (MapGL & { _vehicle?: () => void }) | null)?._vehicle?.();
+  }, [vehicle]);
 
   // route changes
   useEffect(() => {
@@ -174,7 +257,7 @@ export function MapView() {
         src.setData(EMPTY);
         return;
       }
-      src.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: r.lngLat } });
+      src.setData({ type: 'Feature', properties: { bearing: r.bearing }, geometry: { type: 'Point', coordinates: r.lngLat } });
       const kmh = r.v * 3.6;
       m.easeTo({
         center: r.lngLat,
