@@ -89,16 +89,16 @@ select:focus-visible {
   }
 }
 
-/* Launch splash: outlined Navi wipes in, the i-dot swings in with the drift and lands. */
+/* Launch splash: white Navi wipes in, the red full stop slides in with a drift and lands. */
 @keyframes navi-wipe {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
 }
 @keyframes navi-dot {
-  0% { transform: translate(-1900px, 170px) rotate(-34deg); opacity: 1; }
-  62% { transform: translate(70px, -26px) rotate(-3deg); }
-  80% { transform: translate(-14px, 6px) rotate(1deg); }
-  100% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  0% { transform: translate(-2100px, 0); opacity: 1; }
+  62% { transform: translate(60px, 0); }
+  80% { transform: translate(-14px, 0); }
+  100% { transform: translate(0, 0); opacity: 1; }
 }
 @keyframes navi-streak {
   0% { opacity: 1; }
