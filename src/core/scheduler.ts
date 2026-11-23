@@ -1,4 +1,4 @@
-import { composeCall, estimateSpeechMs, type PhraseOptions } from './phrase';
+import { composeCall, estimateSpeechMs, gapText, type PhraseOptions } from './phrase';
 import { cornerSpeedMps, PROFILE_G } from './severity';
 import type { DriverProfile, Note } from './types';
 
@@ -153,6 +153,13 @@ export class CallScheduler {
       }
 
       let text = composeCall(group, o);
+      // plain English names the distance first: "In 110 metres, medium right". Done here, not at speaking time,
+      // so the timing below counts the whole sentence.
+      if (o.dialect === 'plain' && dist0 >= 60) {
+        const g = gapText(dist0, { dialect: 'plain', units: o.units });
+        const lead = g.replace(/^then /, '');
+        if (lead !== g) text = `${lead.charAt(0).toUpperCase()}${lead.slice(1)}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+      }
       if (urgency === 'caution' && !first.mods.caution)
         text = `${o.dialect === 'plain' ? 'Careful' : 'Caution'}. ${text}`;
       const estMs = estimateSpeechMs(text, o.speechRate);

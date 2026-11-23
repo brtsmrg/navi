@@ -176,8 +176,16 @@ export function fullLabel(n: Note): FullLabel {
   return out(cap(`${PLAIN_WORD[n.severity ?? 4]} ${side}`));
 }
 
+let estimator: ((text: string, rate: number) => number | null) | undefined;
+/** Lets a voice that knows its own timing (recorded clips) replace the rough estimate below. */
+export function setSpeechEstimator(fn: ((text: string, rate: number) => number | null) | undefined): void {
+  estimator = fn;
+}
+
 /** Rough speech duration (ms). English TTS runs near 2.7-3 words per second at rate 1. */
 export function estimateSpeechMs(text: string, rate = 1): number {
+  const exact = estimator?.(text, rate);
+  if (exact != null) return exact;
   const words = text.split(/[\s,]+/).filter(Boolean).length;
   return Math.round((words * 340 + 200) / Math.max(0.5, rate));
 }

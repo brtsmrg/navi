@@ -1,4 +1,4 @@
-import { CallScheduler, RouteTracker, gapText, speedProfile, type Call, type Stage } from '@/core';
+import { CallScheduler, RouteTracker, speedProfile, type Call, type Stage } from '@/core';
 import { useApp, useRideStore } from '@/lib/store';
 import { listVoices, primeSpeech, say, stopSpeaking, speechSupported } from '@/lib/speech';
 import { cue, releaseAudio, unlockAudio } from '@/lib/audio';
@@ -18,18 +18,9 @@ let scheduler: CallScheduler | undefined;
 let stageRef: Stage | undefined;
 
 /** Plain English calls open with the distance ("In 150 metres, sharp left"); rally calls stay terse. */
-function withLead(call: Call, text: string): string {
-  const { settings } = useApp.getState();
-  if (settings.dialect !== 'plain' || call.kind !== 'notes' || call.distanceToFirst < 60) return text;
-  const g = gapText(call.distanceToFirst, { dialect: 'plain', units: settings.units });
-  const lead = g.replace(/^then /, '');
-  if (lead === g) return text;
-  return `${lead.charAt(0).toUpperCase()}${lead.slice(1)}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
-}
-
 function emit(call: Call) {
   const { settings } = useApp.getState();
-  const text = withLead(call, call.text);
+  const text = call.text;
   const interrupt = call.kind === 'alert';
   useRideStore.setState({ lastCall: { text, urgency: call.urgency, at: Date.now() } });
   if (settings.muted) return;

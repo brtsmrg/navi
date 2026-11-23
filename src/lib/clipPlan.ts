@@ -46,38 +46,66 @@ export function numberWords(n: number, plain: boolean): string[] {
   return out;
 }
 
-const ORD: Record<string, string> = { '1st': '1st', '2nd': '2nd', '3rd': '3rd', '4th': '4th', '5th': '5th', '6th': '6th', '7th': '7th', '8th': '8th', '9th': '9th' };
-const PAUSE = { word: 30, comma: 190, stop: 330 };
+const ORD_WORD: Record<string, string> = { '1st': 'first', '2nd': 'second', '3rd': 'third', '4th': 'fourth', '5th': 'fifth', '6th': 'sixth', '7th': 'seventh', '8th': 'eighth', '9th': 'ninth' };
+/** Silence between clips, in milliseconds. Phrases within one breath sit close together. */
+const PAUSE = { phrase: 45, comma: 120, stop: 320 };
+const MAX_PHRASE = 9;
 
-/** Plan the clips for a call. `have` is the set of keys the voice pack contains. */
-export function planClips(text: string, have: (key: string) => boolean): ClipStep[] | null {
-  const steps: ClipStep[] = [];
+interface Tok {
+  word: string;
+  /** punctuation just before this word */
+  punct: string;
+}
+
+function tokenize(text: string): Tok[] | null {
+  const toks: Tok[] = [];
   const re = /([,.;:!?]*)\s*([a-z0-9]+(?:-[a-z]+)?)/gi;
-  let first = true;
-  let m: RegExpExecArray | null;
   let consumed = 0;
+  let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
-    // anything between matches other than spaces and punctuation means text we cannot read
+    // anything between matches other than spaces and punctuation is text we cannot read
     if (/[^\s,.;:!?]/.test(text.slice(consumed, m.index))) return null;
     consumed = m.index + m[0].length;
-    const punct = m[1];
-    let pause = /[.!?]/.test(punct) ? PAUSE.stop : punct ? PAUSE.comma : PAUSE.word;
-    if (first) pause = 0;
     const tok = m[2].toLowerCase();
-    let keys: string[];
+    let words: string[];
     if (/^\d+$/.test(tok)) {
       const next = text.slice(consumed).trim().toLowerCase();
-      const plain = /^(metres|meters|feet)\b/.test(next);
-      keys = numberWords(Number(tok), plain);
-      if (!keys.length) return null;
-    } else if (ORD[tok]) keys = [ORD[tok]];
-    else keys = [tok];
-    for (let i = 0; i < keys.length; i++) {
-      if (!have(keys[i])) return null;
-      steps.push({ key: keys[i], pauseMs: i === 0 ? pause : 25 });
-    }
-    first = false;
+      words = numberWords(Number(tok), /^(metres|meters|feet)\b/.test(next));
+      if (!words.length) return null;
+    } else if (ORD_WORD[tok]) words = [ORD_WORD[tok]];
+    else words = [tok];
+    words.forEach((w, i) => toks.push({ word: w, punct: i === 0 ? m![1] : '' }));
   }
   if (/[^\s,.;:!?]/.test(text.slice(consumed))) return null;
+  return toks.length ? toks : null;
+}
+
+/**
+ * Plan the clips for a call. `have` says which keys the voice pack contains. Words are grouped into the
+ * longest recorded phrases first ("left three", "then in one hundred metres"), single words last, so
+ * a call keeps the rhythm of a person reading it. The last phrase uses its "final" take (key + '.').
+ */
+export function planClips(text: string, have: (key: string) => boolean): ClipStep[] | null {
+  const toks = tokenize(text);
+  if (!toks) return null;
+  const steps: ClipStep[] = [];
+  let i = 0;
+  while (i < toks.length) {
+    // a phrase never runs across a comma or full stop
+    let end = i + 1;
+    while (end < toks.length && !toks[end].punct && end - i < MAX_PHRASE) end++;
+    let len = end - i;
+    let key = '';
+    for (; len >= 1; len--) {
+      key = toks.slice(i, i + len).map((t) => t.word).join(' ');
+      if (have(key)) break;
+    }
+    if (len < 1) return null;
+    const p = toks[i].punct;
+    steps.push({ key, pauseMs: i === 0 ? 0 : /[.!?]/.test(p) ? PAUSE.stop : p ? PAUSE.comma : PAUSE.phrase });
+    i += len;
+  }
+  const last = steps[steps.length - 1];
+  if (have(`${last.key}.`)) last.key = `${last.key}.`;
   return steps.length ? steps : null;
 }

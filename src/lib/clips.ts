@@ -5,15 +5,14 @@
  * Anything it cannot read (a driver's own typed words) falls back to the phone's voice.
  */
 import { audioContext } from './audio';
+import { setSpeechEstimator } from '@/core';
 import { planClips } from './clipPlan';
 import { useApp } from './store';
 
 export type ClipVoice = 'george' | 'michael' | 'emma' | 'heart';
+// more voices are added here as their sentence-level recordings are finished
 export const CLIP_VOICES: { id: ClipVoice; name: string; blurb: string }[] = [
   { id: 'george', name: 'George', blurb: 'British man' },
-  { id: 'michael', name: 'Michael', blurb: 'American man' },
-  { id: 'emma', name: 'Emma', blurb: 'British woman' },
-  { id: 'heart', name: 'Heart', blurb: 'American woman' },
 ];
 
 interface Pack {
@@ -67,8 +66,32 @@ export function warmClips(): void {
   if (w.on && typeof window !== 'undefined') void loadVoicePack(w.id);
 }
 
+const speedFor = (rate: number) => Math.min(1.2, Math.max(0.9, rate / 1.1));
+
+/** How long a call takes with the recorded voice (ms), or null when the recorded voice will not be used for it. */
+export function clipDurationMs(text: string, rate: number): number | null {
+  const w = wanted();
+  if (!w.on || pack?.id !== w.id) return null;
+  const plan = planClips(text, (k) => k in pack!.clips);
+  if (!plan) return null;
+  const speed = speedFor(rate);
+  let ms = 0;
+  for (const st of plan) ms += st.pauseMs + pack.clips[st.key][1] * 1000;
+  return Math.round(ms / speed + 60);
+}
+
+interface Queued {
+  text: string;
+  o: { rate: number; volume?: number; onStart?: () => void; onDone?: () => void };
+}
+let queued: Queued | undefined;
+/** audio-context time at which the call now playing ends */
+let endsAt = 0;
+
 export function stopClips(): void {
   clearTimeout(doneTimer);
+  queued = undefined;
+  endsAt = 0;
   for (const s of active) {
     try {
       s.stop();
@@ -79,24 +102,12 @@ export function stopClips(): void {
   active = [];
 }
 
-/**
- * Speak a call from recordings. Returns false when it cannot (voice off, not loaded yet, no audio
- * context, or a word with no recording), so the caller can use the phone's voice instead.
- */
-export function playClips(text: string, o: { rate: number; volume?: number; onStart?: () => void; onDone?: () => void }): boolean {
-  const w = wanted();
-  if (!w.on) return false;
-  if (pack?.id !== w.id) {
-    void loadVoicePack(w.id);
-    return false;
-  }
-  const ctx = audioContext();
-  if (!ctx || ctx.state === 'closed') return false;
+function schedule(ctx: AudioContext, text: string, o: Queued['o']): boolean {
+  if (!pack) return false;
   const plan = planClips(text, (k) => k in pack!.clips);
   if (!plan) return false;
-  stopClips();
   void ctx.resume();
-  const speed = Math.min(1.2, Math.max(0.9, o.rate / 1.1));
+  const speed = speedFor(o.rate);
   const gain = ctx.createGain();
   gain.gain.value = Math.min(1, Math.max(0, o.volume ?? 1));
   gain.connect(ctx.destination);
@@ -112,9 +123,46 @@ export function playClips(text: string, o: { rate: number; volume?: number; onSt
     active.push(src);
     t += len / speed;
   }
+  endsAt = t;
   o.onStart?.();
-  doneTimer = setTimeout(() => o.onDone?.(), Math.max(0, (t - ctx.currentTime) * 1000));
+  clearTimeout(doneTimer);
+  doneTimer = setTimeout(() => {
+    o.onDone?.();
+    // keep the list of live sources short
+    active = [];
+    if (queued) {
+      const q = queued;
+      queued = undefined;
+      const c = audioContext();
+      if (c) schedule(c, q.text, q.o);
+    }
+  }, Math.max(0, (t - ctx.currentTime) * 1000));
   return true;
+}
+
+/**
+ * Speak a call from recordings. Returns false when it cannot (voice off, not loaded yet, no audio
+ * context, or a word with no recording), so the caller can use the phone's voice instead.
+ * A call that arrives while another is still playing waits its turn (only the newest waiting call is
+ * kept, an older one is stale); `interrupt` cuts the current call off, for urgent warnings.
+ */
+export function playClips(text: string, o: { rate: number; volume?: number; interrupt?: boolean; onStart?: () => void; onDone?: () => void }): boolean {
+  const w = wanted();
+  if (!w.on) return false;
+  if (pack?.id !== w.id) {
+    void loadVoicePack(w.id);
+    return false;
+  }
+  const ctx = audioContext();
+  if (!ctx || ctx.state === 'closed') return false;
+  if (!planClips(text, (k) => k in pack!.clips)) return false;
+  const playing = endsAt > ctx.currentTime;
+  if (playing && !o.interrupt) {
+    queued = { text, o };
+    return true;
+  }
+  stopClips();
+  return schedule(ctx, text, o);
 }
 
 if (typeof window !== 'undefined') {
@@ -128,4 +176,5 @@ if (typeof window !== 'undefined') {
     }
   });
   setTimeout(warmClips, 0);
+  setSpeechEstimator(clipDurationMs);
 }

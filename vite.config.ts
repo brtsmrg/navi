@@ -35,6 +35,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: 'index.html',
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // the default recorded voice ships with the app; the other voices are kept after first use
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}', 'voices/george.{mp3,json}'],
         globIgnores: ['voices/{michael,emma,heart}.*'],

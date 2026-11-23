@@ -22,8 +22,9 @@ describe('numberWords', () => {
 describe('planClips', () => {
   it('joins words with longer pauses after commas', () => {
     const p = planClips('Left 3 tightens, 150, right 2', have)!;
-    expect(p.map((s) => s.key)).toEqual(['left', 'three', 'tightens', 'one', 'fifty', 'right', 'two']);
-    expect(p[3].pauseMs).toBeGreaterThan(p[1].pauseMs);
+    expect(p.map((s) => s.key)).toEqual(['left three', 'tightens', 'one fifty', 'right two.']);
+    // the comma before "150" is a longer pause than the plain phrase join
+    expect(p[2].pauseMs).toBeGreaterThan(p[1].pauseMs);
   });
   it('gives up (so the phone voice is used) on a word it has no recording for', () => {
     expect(planClips('Left 3, watch the cattle grid', have)).toBeNull();

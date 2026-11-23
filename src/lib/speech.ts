@@ -69,7 +69,7 @@ export let live: SpeechSynthesisUtterance | undefined;
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void; onStart?: () => void; onFail?: () => void; noRetry?: boolean }): void {
-  if (playClips(text, { rate: o.rate, volume: o.volume, onStart: o.onStart, onDone: o.onDone })) {
+  if (playClips(text, { rate: o.rate, volume: o.volume, interrupt: o.interrupt, onStart: o.onStart, onDone: o.onDone })) {
     // recorded voice took the call: make sure the phone voice is not also speaking an old one
     if (speechSupported()) window.speechSynthesis.cancel();
     clearTimeout(speakTimer);
