@@ -14,16 +14,13 @@ if not exist ".git" (
   echo This folder is not the Navi repo: %CD%
   goto :end
 )
-rem remove files this update replaces (safe if already gone)
-if exist "src\components\PlanPanel.tsx" del /q "src\components\PlanPanel.tsx" >> "%LOG%" 2>&1
-if exist "src\components\PlaceField.tsx" del /q "src\components\PlaceField.tsx" >> "%LOG%" 2>&1
 git add -A >> "%LOG%" 2>&1
 git diff --cached --quiet
 if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo Audio fix: speak inside the tap on iPhone, sound report in Settings
+> "%TEMP%\navi-update-msg.txt" echo Traffic arrows on both sides in the turn colours, original turn colours restored
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7
@@ -36,9 +33,14 @@ if errorlevel 1 (
 :push
 git push origin main >> "%LOG%" 2>&1
 if errorlevel 1 (
-  echo Push failed. See push-update-log.txt >> "%LOG%"
-  echo PUSH FAILED. Open push-update-log.txt in this folder.
-  goto :end
+  echo First push failed, trying to sync first. >> "%LOG%"
+  git -c user.name="brtsmrg" -c user.email="brtsmrg@users.noreply.github.com" pull --rebase origin main >> "%LOG%" 2>&1
+  git push origin main >> "%LOG%" 2>&1
+  if errorlevel 1 (
+    echo Push failed. See push-update-log.txt >> "%LOG%"
+    echo PUSH FAILED. Open push-update-log.txt in this folder.
+    goto :end
+  )
 )
 echo PUSH OK >> "%LOG%"
 echo.

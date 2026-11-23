@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { LngLatBounds, Map as MapGL, NavigationControl, setWorkerUrl, type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
+import { LngLatBounds, Map as MapGL, NavigationControl, setWorkerUrl, type GeoJSONSource, type StyleSpecification, type SymbolLayerSpecification } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import type { Feature, FeatureCollection } from 'geojson';
 import { RouteTracker, TRAFFIC_COLOR, type Stage, type TrafficSpan } from '@/core';
@@ -49,19 +49,42 @@ function stageGeo(stage: Stage) {
   };
 }
 
-/** One coloured line per traffic span, following the route. */
+/** Arrow marks for traffic: one line per span and side. The right side is your direction, the left side is oncoming. */
 function trafficGeo(stage: Stage | null, spans: TrafficSpan[]): FeatureCollection {
   if (!stage || !spans.length) return EMPTY;
   const tracker = new RouteTracker(stage.route.coords);
-  return {
-    type: 'FeatureCollection',
-    features: spans.map((sp) => {
-      const coords: [number, number][] = [];
-      for (let s = sp.from; s < sp.to; s += 20) coords.push(tracker.pointAt(s).lngLat);
-      coords.push(tracker.pointAt(sp.to).lngLat);
-      return { type: 'Feature', properties: { color: TRAFFIC_COLOR[sp.level] }, geometry: { type: 'LineString', coordinates: coords } } as Feature;
-    }),
-  };
+  const features: Feature[] = [];
+  for (const sp of spans) {
+    const coords: [number, number][] = [];
+    for (let s = sp.from; s < sp.to; s += 20) coords.push(tracker.pointAt(s).lngLat);
+    coords.push(tracker.pointAt(sp.to).lngLat);
+    const geometry = { type: 'LineString' as const, coordinates: coords };
+    features.push({ type: 'Feature', properties: { side: 'R', icon: `tr-${sp.level}` }, geometry });
+    features.push({ type: 'Feature', properties: { side: 'L', icon: `tr-${sp.opp ?? sp.level}` }, geometry });
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+/** A chevron arrow in each traffic colour, drawn on a canvas so the map can use it as an icon. */
+function addTrafficIcons(m: MapGL) {
+  for (const level of [0, 1, 2, 3] as const) {
+    const id = `tr-${level}`;
+    if (m.hasImage(id)) continue;
+    const c = document.createElement('canvas');
+    c.width = 56;
+    c.height = 56;
+    const cx = c.getContext('2d');
+    if (!cx) continue;
+    cx.fillStyle = TRAFFIC_COLOR[level];
+    cx.beginPath();
+    cx.moveTo(28, 6);
+    cx.lineTo(48, 42);
+    cx.lineTo(28, 32);
+    cx.lineTo(8, 42);
+    cx.closePath();
+    cx.fill();
+    m.addImage(id, cx.getImageData(0, 0, 56, 56), { pixelRatio: 2 });
+  }
 }
 
 function fitToStage(m: MapGL, stage: Stage | null) {
@@ -161,8 +184,21 @@ export function MapView() {
       map1.on('load', () => {
         for (const id of ['traffic', 'line', 'hot', 'pts', 'me', 'pins']) map1.addSource(id, { type: 'geojson', data: EMPTY });
         const round = { 'line-cap': 'round', 'line-join': 'round' } as const;
-        // traffic is a thin outline around the route so the turn-sharpness colours stay untouched
-        map1.addLayer({ id: 'route-traffic', type: 'line', source: 'traffic', layout: round, paint: { 'line-color': ['get', 'color'], 'line-width': 17 } });
+        // traffic: translucent arrows either side of the road, in the turn colours
+        addTrafficIcons(map1);
+        const arrows: SymbolLayerSpecification['layout'] = {
+          'symbol-placement': 'line',
+          'symbol-spacing': 40,
+          'icon-image': ['get', 'icon'],
+          'icon-offset': [15, 0],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.3, 13, 0.8, 16, 1.4, 18, 1.9],
+          'icon-rotation-alignment': 'map',
+          'icon-pitch-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        };
+        map1.addLayer({ id: 'traffic-r', type: 'symbol', source: 'traffic', filter: ['==', ['get', 'side'], 'R'], layout: { ...arrows, 'icon-rotate': 0 }, paint: { 'icon-opacity': 0.75 } });
+        map1.addLayer({ id: 'traffic-l', type: 'symbol', source: 'traffic', filter: ['==', ['get', 'side'], 'L'], layout: { ...arrows, 'icon-rotate': 180 }, paint: { 'icon-opacity': 0.75 } });
         map1.addLayer({ id: 'route-casing', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#05070a', 'line-width': 11 } });
         map1.addLayer({ id: 'route', type: 'line', source: 'line', layout: round, paint: { 'line-color': '#e9edf2', 'line-width': 5, 'line-opacity': 0.85 } });
         map1.addLayer({ id: 'route-hot', type: 'line', source: 'hot', layout: round, paint: { 'line-color': ['get', 'color'], 'line-width': 6 } });

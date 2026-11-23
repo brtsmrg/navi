@@ -13,7 +13,7 @@ async def main():
         b = await p.chromium.launch()
         for vid in ["dot", "car", "bike", "utv", "truck"]:
             ctx = await b.new_context(**p.devices["iPhone 15"], permissions=["geolocation"], geolocation={"latitude": 45.42, "longitude": -75.7})
-            await ctx.add_init_script("localStorage.setItem('navi.settings.v2', %s)" % json.dumps(json.dumps({"vehicle": vid, "safetyAccepted": True, "muted": True, "traffic": False})))
+            await ctx.add_init_script("localStorage.setItem('navi.settings.v2', %s)" % json.dumps(json.dumps({"vehicle": vid, "safetyAccepted": True, "muted": True, "traffic": True})))
             pg = await ctx.new_page()
             await pg.route("**/valhalla1.openstreetmap.de/route*", lambda r: r.fulfill(content_type="application/json", body=FX))
             await pg.route("**/valhalla1.openstreetmap.de/trace_attributes", lambda r: r.fulfill(status=500, body="{}"))
@@ -31,6 +31,14 @@ async def main():
             await pg.get_by_role("button", name="Watch the demo drive").click()
             await pg.wait_for_selector("text=Stop demo", timeout=15000)
             await pg.wait_for_timeout(7000)
+            if vid == "car" and len(sys.argv) > 3 and sys.argv[3] == "mid":
+                # keep driving until the sample traffic gets busy, then take a close-up
+                await pg.wait_for_timeout(235000)
+                await pg.add_style_tag(content=".safe-t, .edge-cue, [data-testid=stage-hud]{display:none !important}")
+                await pg.wait_for_timeout(600)
+                await pg.screenshot(path=OUT / "traffic-mid-route.png", clip={"x": 0, "y": 150, "width": 393, "height": 520})
+                await ctx.close()
+                continue
             await pg.add_style_tag(content=".safe-t, .edge-cue, [data-testid=stage-hud]{display:none !important}")
             await pg.wait_for_timeout(600)
             await pg.screenshot(path=OUT / f"vehicle-{vid}.png", clip={"x": 0, "y": 250, "width": 393, "height": 420})

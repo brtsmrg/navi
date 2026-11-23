@@ -6,6 +6,7 @@ import { useApp, type Readout, type Theme } from '@/lib/store';
 import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
 import { audioReport, testCues, unlockAudio } from '@/lib/audio';
+import { useTraffic } from '@/lib/traffic';
 import { VEHICLES } from './vehicles';
 import { Button, Range, Segmented, Sheet, Toggle } from './ui';
 
@@ -55,6 +56,7 @@ export function SettingsDialog() {
   const setOpen = useApp((s) => s.setSettingsOpen);
   const st = useApp((s) => s.settings);
   const set = useApp((s) => s.set);
+  const trafficError = useTraffic((s) => s.error);
   const [voices, setVoices] = useState<VoiceInfo[]>([]);
   const [voiceMsg, setVoiceMsg] = useState('');
   const [dataMsg, setDataMsg] = useState('');
@@ -198,6 +200,34 @@ export function SettingsDialog() {
           )}
           {st.profile === 'stage' && st.stageAttested && <p className="text-sm text-go">Stage timing is on for this device. Switching profile turns it off.</p>}
           <Range label="Warning time" value={st.leadSec} min={4} max={12} step={1} onChange={(leadSec) => set({ leadSec })} display={`${st.leadSec} s`} />
+        </Section>
+
+        <Section title="Traffic">
+          <Toggle label="Show traffic on the map" checked={st.traffic} onChange={(traffic) => set({ traffic })} />
+          <p className="text-sm text-mute">Translucent arrows on both sides of the road in the turn colours: green clear, yellow slow, orange heavy, red stopped. The right side is your direction and the left side is oncoming. Off by default. Never shown in stage view.</p>
+          {st.traffic && (
+            <>
+              <Segmented<'sample' | 'tomtom' | 'here'> label="Data" value={st.trafficSource} onChange={(trafficSource) => set({ trafficSource })} options={[{ value: 'sample', label: 'Sample' }, { value: 'tomtom', label: 'TomTom' }, { value: 'here', label: 'HERE' }]} />
+              {st.trafficSource === 'sample' ? (
+                <p className="text-sm text-mute">Sample traffic is made up. It is only for looking at the design. Pick TomTom or HERE and add your own free key for real traffic.</p>
+              ) : (
+                <>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label="Traffic key"
+                    placeholder="Paste your free key"
+                    value={st.trafficKey}
+                    onChange={(e) => set({ trafficKey: e.target.value })}
+                    className="w-full rounded-xl border border-line bg-panel px-3 py-2 text-ink"
+                  />
+                  <p className="text-sm text-mute">The key stays on this device and is only sent to {st.trafficSource === 'tomtom' ? 'TomTom' : 'HERE'}. This source gives one direction, so the oncoming side repeats it.</p>
+                </>
+              )}
+              {trafficError && <p role="status" className="text-sm text-sev2">Traffic: {trafficError}.</p>}
+            </>
+          )}
         </Section>
 
         <Section title="Your data">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { levelFromRatio, mergeSpans, sampleTraffic } from './traffic';
+import { levelFromRatio, mergeSpans, sampleTraffic, TRAFFIC_COLOR } from './traffic';
 
 describe('traffic', () => {
   it('maps speed ratio to four levels', () => {
@@ -20,6 +20,17 @@ describe('traffic', () => {
       { from: 0, to: 200, level: 1 },
       { from: 200, to: 300, level: 2 },
     ]);
+  });
+  it('keeps spans apart when the oncoming side differs', () => {
+    const m = mergeSpans([
+      { from: 0, to: 100, level: 1, opp: 0 },
+      { from: 100, to: 200, level: 1, opp: 2 },
+    ]);
+    expect(m).toHaveLength(2);
+  });
+  it('uses the turn colours', () => {
+    expect(TRAFFIC_COLOR[0]).toBe('#7fd6a1');
+    expect(TRAFFIC_COLOR[3]).toBe('#ff3b30');
   });
   it('sample data covers the whole route without gaps', () => {
     const s = sampleTraffic(10000);

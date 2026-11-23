@@ -3,11 +3,14 @@ export type TrafficLevel = 0 | 1 | 2 | 3;
 export interface TrafficSpan {
   from: number;
   to: number;
+  /** Traffic going the way you are going (right-hand side of the road as drawn). */
   level: TrafficLevel;
+  /** Oncoming traffic (left side). When a source cannot tell, the arrows on that side repeat `level`. */
+  opp?: TrafficLevel;
 }
 
-/** The colours drivers already know: green clear, orange slow, red heavy, dark red stopped. */
-export const TRAFFIC_COLOR: Record<TrafficLevel, string> = { 0: '#34c759', 1: '#ff9f0a', 2: '#ff3b30', 3: '#a50e0e' };
+/** The same colours the turns use: green clear, yellow slow, orange heavy, red stopped. */
+export const TRAFFIC_COLOR: Record<TrafficLevel, string> = { 0: '#7fd6a1', 1: '#e9d84a', 2: '#ff7a2b', 3: '#ff3b30' };
 export const TRAFFIC_LABEL: Record<TrafficLevel, string> = { 0: 'clear', 1: 'slow', 2: 'heavy', 3: 'stopped' };
 
 /** Level from current speed against free-flow speed. */
@@ -25,7 +28,7 @@ export function mergeSpans(spans: TrafficSpan[]): TrafficSpan[] {
   const out: TrafficSpan[] = [];
   for (const sp of [...spans].filter((x) => x.to > x.from).sort((a, b) => a.from - b.from)) {
     const last = out[out.length - 1];
-    if (last && last.level === sp.level && sp.from <= last.to + 1) last.to = Math.max(last.to, sp.to);
+    if (last && last.level === sp.level && last.opp === sp.opp && sp.from <= last.to + 1) last.to = Math.max(last.to, sp.to);
     else out.push({ ...sp });
   }
   return out;
@@ -35,12 +38,12 @@ export function mergeSpans(spans: TrafficSpan[]): TrafficSpan[] {
 export function sampleTraffic(distanceM: number): TrafficSpan[] {
   if (distanceM <= 0) return [];
   const f = [
-    [0, 0.3, 0],
-    [0.3, 0.45, 1],
-    [0.45, 0.55, 2],
-    [0.55, 0.65, 3],
-    [0.65, 0.8, 1],
-    [0.8, 1, 0],
+    [0, 0.3, 0, 0],
+    [0.3, 0.45, 1, 0],
+    [0.45, 0.55, 2, 1],
+    [0.55, 0.65, 3, 1],
+    [0.65, 0.8, 1, 0],
+    [0.8, 1, 0, 2],
   ] as const;
-  return mergeSpans(f.map(([a, b, level]) => ({ from: a * distanceM, to: b * distanceM, level })));
+  return mergeSpans(f.map(([a, b, level, opp]) => ({ from: a * distanceM, to: b * distanceM, level, opp })));
 }
