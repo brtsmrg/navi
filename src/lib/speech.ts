@@ -68,14 +68,20 @@ export const lastSpeechError = () => lastError;
 export let live: SpeechSynthesisUtterance | undefined;
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
-export function say(text: string, o: { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void; onStart?: () => void; onFail?: () => void; noRetry?: boolean }): void {
-  if (playClips(text, { rate: o.rate, volume: o.volume, interrupt: o.interrupt, onStart: o.onStart, onDone: o.onDone })) {
+type SayOptions = { rate: number; voiceURI: string; volume?: number; interrupt?: boolean; onDone?: () => void; onStart?: () => void; onFail?: () => void; noRetry?: boolean };
+
+export function say(text: string, o: SayOptions): void {
+  if (playClips(text, { rate: o.rate, volume: o.volume, interrupt: o.interrupt, onStart: o.onStart, onDone: o.onDone, fallback: () => sayWithPhone(text, o) })) {
     // recorded voice took the call: make sure the phone voice is not also speaking an old one
     if (speechSupported()) window.speechSynthesis.cancel();
     clearTimeout(speakTimer);
     live = undefined;
     return;
   }
+  sayWithPhone(text, o);
+}
+
+function sayWithPhone(text: string, o: SayOptions): void {
   if (!speechSupported()) return;
   const synth = window.speechSynthesis;
   clearTimeout(speakTimer);

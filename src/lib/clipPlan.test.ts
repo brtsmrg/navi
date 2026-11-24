@@ -65,7 +65,7 @@ describe('every call the app can speak has recordings', () => {
       for (const units of unitsList)
         for (let m = 0; m <= 6000; m += 5) {
           const t = gapText(m, { dialect, units });
-          expect(planClips(t, have), `${dialect} ${units} ${m}: ${t}`).not.toBeNull();
+          if (t) expect(planClips(t, have), `${dialect} ${units} ${m}: ${t}`).not.toBeNull();
         }
   });
 

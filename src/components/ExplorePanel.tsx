@@ -13,6 +13,7 @@ import { CATEGORIES, searchNearby, type Category, type NearbyPlace, type Place }
 import { NotesList } from './NotesList';
 import { SafetyGate } from './SafetyGate';
 import { PlaceRow, SearchBox } from './SearchBox';
+import { PrepareVoice } from './PrepareVoice';
 import { Button } from './ui';
 
 function Stat({ value, label }: { value: string; label: string }) {
@@ -323,6 +324,7 @@ function RouteView() {
 
       {plan.busy && <p className="rounded-xl bg-bg p-3 text-sm text-mute">Reading the road…</p>}
       <StatsBlock stage={stage} />
+      <PrepareVoice stage={stage} />
 
       {isDemoRoad ? (
         <>

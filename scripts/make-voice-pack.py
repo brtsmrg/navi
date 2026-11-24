@@ -105,10 +105,14 @@ def main():
         jobs = [(k, t, '.') for k, t in WORDS.items()] + [(k, tts_text(k), ',') for k, _ in PHRASES]
         jobs += [(k + '.', tts_text(k), '.') for k, fin in PHRASES if fin]
         for key, say, tail in jobs:
-            x, sr = k.create(say + tail, voice=voice, speed=1.18, lang=lang)
-            x = tidy(np.asarray(x, dtype=np.float32), sr)
+            f = words_dir / f'{key}.wav'
+            if f.exists():  # resume: a clip already recorded by an earlier, interrupted run
+                x, sr = sf.read(f, dtype='float32')
+            else:
+                x, sr = k.create(say + tail, voice=voice, speed=1.18, lang=lang)
+                x = tidy(np.asarray(x, dtype=np.float32), sr)
+                sf.write(f, x, sr)
             sr0 = sr0 or sr
-            sf.write(words_dir / f'{key}.wav', x, sr)
             if gap is None: gap = np.zeros(int(0.04 * sr), dtype=np.float32)
             man[key] = [round(pos, 4), round(len(x) / sr, 4)]
             parts += [x, gap]; pos += (len(x) + len(gap)) / sr

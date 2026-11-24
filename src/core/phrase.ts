@@ -92,8 +92,10 @@ const M_TO_FT = 3.28084;
 /** Connector spoken between two notes `gapM` apart. */
 export function gapText(gapM: number, o: PhraseOptions): string {
   const plain = o.dialect === 'plain';
-  if (gapM < 25) return plain ? 'then' : 'into';
-  if (gapM < 50) return plain ? 'then' : 'and';
+  // close together: "into" for a link, and in plain English no connecting word at all, just a pause
+  // (a spoken "then" after every corner sounds stilted)
+  if (gapM < 25) return 'into';
+  if (gapM < 50) return plain ? '' : 'and';
   const r = roundGap(gapM);
   if (o.units === 'imperial') {
     const ft = Math.round((r * M_TO_FT) / 50) * 50;
@@ -113,7 +115,7 @@ export function composeCall(notes: Note[], o: PhraseOptions): string {
     }
     const g = gapText(n.s - notes[i - 1].sEnd, o);
     const lc = `${t.charAt(0).toLowerCase()}${t.slice(1)}`;
-    acc += /^(into|and|then)$/.test(g) ? ` ${g} ${lc}` : `, ${g}, ${lc}`;
+    acc += g === '' ? `, ${lc}` : /^(into|and|then)$/.test(g) ? ` ${g} ${lc}` : `, ${g}, ${lc}`;
   });
   return acc;
 }

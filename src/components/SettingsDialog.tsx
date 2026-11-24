@@ -7,6 +7,7 @@ import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
 import { audioReport, testCues, unlockAudio } from '@/lib/audio';
 import { CLIP_VOICES, clipsFailed, loadVoicePack, type ClipVoice } from '@/lib/clips';
+import { clearPremiumAudio, PREMIUM_VOICES, premiumFetch, PremiumError, type PremiumVoice } from '@/lib/premium';
 import { useTraffic } from '@/lib/traffic';
 import { VEHICLES } from './vehicles';
 import { Button, Range, Segmented, Sheet, Toggle } from './ui';
@@ -77,6 +78,20 @@ export function SettingsDialog() {
   const testVoice = () => {
     unlockAudio(); // inside the tap, so iOS and Chrome allow sound
     setVoiceMsg('');
+    if (st.voiceEngine === 'premium') {
+      if (st.premiumKey.trim().length <= 20) {
+        setVoiceMsg('Paste your OpenAI key above first.');
+        return;
+      }
+      setVoiceMsg('Asking the voice service…');
+      void premiumFetch(sample)
+        .then(() => {
+          setVoiceMsg('');
+          say(sample, { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
+        })
+        .catch((e: unknown) => setVoiceMsg(e instanceof PremiumError ? e.message : 'The premium voice could not be made. Try again.'));
+      return;
+    }
     if (st.voiceEngine === 'recorded') {
       void loadVoicePack(st.clipVoice).then((ok) => {
         if (!ok && !speechSupported()) setVoiceMsg('The recorded voice could not load. Check the connection once, then try again.');
@@ -131,7 +146,30 @@ export function SettingsDialog() {
           </div>
           {voiceMsg && <p role="status" className="text-sm text-sev3">{voiceMsg}</p>}
           <SoundReport voices={voices.length} tick={voiceMsg} />
-          <Segmented<'recorded' | 'phone'> label="Voice type" value={st.voiceEngine} onChange={(voiceEngine) => set({ voiceEngine })} options={[{ value: 'recorded', label: 'Recorded voice' }, { value: 'phone', label: 'Phone voice' }]} />
+          <Segmented<'premium' | 'recorded' | 'phone'> label="Voice type" value={st.voiceEngine} onChange={(voiceEngine) => set({ voiceEngine })} options={[{ value: 'premium', label: 'Premium' }, { value: 'recorded', label: 'Recorded' }, { value: 'phone', label: 'Phone' }]} />
+          {st.voiceEngine === 'premium' && (
+            <>
+              <label className="block space-y-1">
+                <span className="text-sm">Your OpenAI key</span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  placeholder="sk-…"
+                  value={st.premiumKey}
+                  onChange={(e) => set({ premiumKey: e.target.value.trim() })}
+                  className="min-h-12 w-full rounded-xl bg-bg px-3 text-[16px] ring-1 ring-line"
+                />
+              </label>
+              <Segmented<PremiumVoice> label="Co-driver" value={st.premiumVoice} onChange={(premiumVoice) => set({ premiumVoice })} options={PREMIUM_VOICES.map((v) => ({ value: v.id, label: v.name }))} />
+              <p className="text-sm text-mute">
+                A premium voice that is told to sound like an urgent rally co-driver. Each road's calls are made once, on the planning screen, and kept on this phone, so the drive works with no signal. A road costs a few US cents on your own OpenAI account. The key stays on this phone and is sent only to OpenAI, over HTTPS. {PREMIUM_VOICES.find((v) => v.id === st.premiumVoice)?.blurb}.
+                {st.premiumKey.trim().length > 0 && st.premiumKey.trim().length <= 20 ? ' That key looks too short.' : ''}
+              </p>
+              <Button variant="raise" className="w-full" onClick={() => { void clearPremiumAudio().then(() => setVoiceMsg('Saved premium audio cleared from this phone.')); }}>Clear saved premium audio</Button>
+            </>
+          )}
           {st.voiceEngine === 'recorded' && (
             <>
               <Segmented<ClipVoice> label="Co-driver" value={st.clipVoice} onChange={(clipVoice) => { set({ clipVoice }); unlockAudio(); void loadVoicePack(clipVoice).then(() => say(sample, { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true })); }} options={CLIP_VOICES.map((v) => ({ value: v.id, label: v.name }))} />
