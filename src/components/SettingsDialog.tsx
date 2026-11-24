@@ -7,7 +7,9 @@ import { useLibrary } from '@/lib/library';
 import { listVoices, say, speechSupported, waitForVoices, lastSpeechError, type VoiceInfo } from '@/lib/speech';
 import { audioReport, testCues, unlockAudio } from '@/lib/audio';
 import { CLIP_VOICES, clipsFailed, loadVoicePack, type ClipVoice } from '@/lib/clips';
-import { clearPremiumAudio, PREMIUM_VOICES, premiumFetch, PremiumError, type PremiumVoice } from '@/lib/premium';
+import { clearPremiumAudio, makeSample, PREMIUM_VOICES, premiumFetch, PremiumError, type PremiumVoice } from '@/lib/premium';
+import { DEVICE_VOICES, type DeviceVoice } from '@/lib/kokoro/engine';
+import { MODEL_MB } from '@/lib/kokoro/urls';
 import { useTraffic } from '@/lib/traffic';
 import { VEHICLES } from './vehicles';
 import { Button, Range, Segmented, Sheet, Toggle } from './ui';
@@ -78,6 +80,16 @@ export function SettingsDialog() {
   const testVoice = () => {
     unlockAudio(); // inside the tap, so iOS and Chrome allow sound
     setVoiceMsg('');
+    if (st.voiceEngine === 'ondevice') {
+      setVoiceMsg(`Getting the voice ready. The first time it downloads ${MODEL_MB} MB…`);
+      void makeSample(sample, (loaded, total) => setVoiceMsg(`Downloading the voice, once: ${Math.round(loaded / 1e5) / 10} of ${total ? Math.round(total / 1e5) / 10 : MODEL_MB} MB`))
+        .then(() => {
+          setVoiceMsg('');
+          say(sample, { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
+        })
+        .catch((e: unknown) => setVoiceMsg(e instanceof Error ? e.message : 'The voice could not be made. Try again.'));
+      return;
+    }
     if (st.voiceEngine === 'premium') {
       if (st.premiumKey.trim().length <= 20) {
         setVoiceMsg('Paste your OpenAI key above first.');
@@ -146,7 +158,16 @@ export function SettingsDialog() {
           </div>
           {voiceMsg && <p role="status" className="text-sm text-sev3">{voiceMsg}</p>}
           <SoundReport voices={voices.length} tick={voiceMsg} />
-          <Segmented<'premium' | 'recorded' | 'phone'> label="Voice type" value={st.voiceEngine} onChange={(voiceEngine) => set({ voiceEngine })} options={[{ value: 'premium', label: 'Premium' }, { value: 'recorded', label: 'Recorded' }, { value: 'phone', label: 'Phone' }]} />
+          <Segmented<'ondevice' | 'premium' | 'recorded' | 'phone'> label="Voice type" value={st.voiceEngine} onChange={(voiceEngine) => set({ voiceEngine })} options={[{ value: 'ondevice', label: 'Free' }, { value: 'premium', label: 'Premium' }, { value: 'recorded', label: 'Recorded' }, { value: 'phone', label: 'Phone' }]} />
+          {st.voiceEngine === 'ondevice' && (
+            <>
+              <Segmented<DeviceVoice> label="Co-driver" value={st.deviceVoice} onChange={(deviceVoice) => set({ deviceVoice })} options={DEVICE_VOICES.map((v) => ({ value: v.id, label: v.name }))} />
+              <p className="text-sm text-mute">
+                A free, lifelike voice that runs on this phone and costs nothing, with an urgent co-driver delivery. Each road's calls are made once, on the planning screen, and kept here, so the drive works with no signal. The first time it downloads the voice ({MODEL_MB} MB); use Wi-Fi. A call that is not made yet is spoken by the recorded voice. {DEVICE_VOICES.find((v) => v.id === st.deviceVoice)?.blurb}.
+              </p>
+              <Button variant="raise" className="w-full" onClick={() => { void clearPremiumAudio().then(() => setVoiceMsg('Saved voice audio cleared from this phone.')); }}>Clear saved voice audio</Button>
+            </>
+          )}
           {st.voiceEngine === 'premium' && (
             <>
               <label className="block space-y-1">

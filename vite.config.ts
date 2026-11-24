@@ -38,13 +38,19 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // the default recorded voice ships with the app; the other voices are kept after first use
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}', 'voices/george.{mp3,json}'],
-        globIgnores: ['voices/{michael,emma,heart}.*'],
+        globIgnores: ['voices/{michael,emma,heart}.*', 'assets/kokoro.worker-*', 'assets/*.wasm'],
         // map tiles you have already looked at keep working with no signal (the style and tiles are public OpenFreeMap files)
         runtimeCaching: [
           {
             urlPattern: ({ url }: { url: URL }) => /\/voices\/[a-z]+\.(mp3|json)$/.test(url.pathname),
             handler: 'CacheFirst',
             options: { cacheName: 'navi-voices', cacheableResponse: { statuses: [200] } },
+          },
+          {
+            // the free on-phone voice engine (kept after first use, so it works with no signal)
+            urlPattern: ({ url }: { url: URL }) => /\/assets\/(kokoro\.worker-.*\.js|.*\.wasm)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'navi-voice-engine', cacheableResponse: { statuses: [200] } },
           },
           {
             urlPattern: ({ url }: { url: URL }) => url.origin === 'https://tiles.openfreemap.org',

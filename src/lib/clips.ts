@@ -3,7 +3,7 @@
  * (Kokoro, Apache 2.0) and is joined into calls here, the way GPS units speak. It plays through the
  * same audio context as the beeps, so it does not depend on the phone's built-in speech engine.
  * Anything it cannot read (a driver's own typed words) falls back to the phone's voice.
- * With the premium voice switched on, whole calls made ahead by the premium service are played instead, and the
+ * With the premium or on-phone voice switched on, whole calls made ahead of the ride are played instead, and the
  * recorded words cover any call that is not ready.
  */
 import { audioContext } from './audio';
@@ -60,7 +60,7 @@ export const clipsFailed = () => failed;
 
 function wanted(): { on: boolean; id: ClipVoice } {
   const s = useApp.getState().settings;
-  return { on: s.voiceEngine === 'recorded' || (s.voiceEngine === 'premium' && premiumOn()), id: s.clipVoice };
+  return { on: s.voiceEngine === 'recorded' || ((s.voiceEngine === 'premium' || s.voiceEngine === 'ondevice') && premiumOn()), id: s.clipVoice };
 }
 
 /** Start loading the chosen voice as soon as the app (or the setting) asks for it. */

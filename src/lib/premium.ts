@@ -1,13 +1,17 @@
 /**
- * Premium co-driver voice. Each call is spoken by OpenAI's text-to-speech model, told to sound like an
- * urgent rally co-driver, using the driver's own API key. Calls are made ahead of the ride ("Prepare voice")
- * and kept on the phone, so the ride itself needs no signal. A call that was not prepared is fetched on the
- * spot when there is signal, and the recorded voice covers any call that cannot be fetched in time.
+ * Whole-call co-driver voices, made ahead of the ride ("Prepare voice") and kept on the phone, so the ride itself
+ * needs no signal. Two makers share this code:
+ *  - Premium: OpenAI's text-to-speech model, told to sound like an urgent rally co-driver, using the driver's own API key.
+ *    A call that was not prepared is fetched on the spot when there is signal.
+ *  - On-phone (free): the Kokoro model runs on the phone itself. It is too slow to speak during a drive, so every call on
+ *    the road is made before the ride; a call that is not ready is covered by the recorded words.
+ * Either way the recorded voice covers any call that cannot be played in time.
  *
- * The key lives only in this phone's settings and is sent only to api.openai.com over HTTPS.
+ * The OpenAI key lives only in this phone's settings and is sent only to api.openai.com over HTTPS.
  */
 import { CallScheduler, speedProfile, drive, roundGap, type Stage } from '@/core';
 import { numberWords } from './clipPlan';
+import { DEVICE_RATE, DEVICE_STYLE_VERSION, deviceStart, deviceSynth, DeviceVoiceError, release, type DeviceVoice } from './kokoro/engine';
 import { useApp, type Settings } from './store';
 
 export const PREMIUM_VOICES = [
@@ -50,7 +54,8 @@ export function splitSegments(text: string): string[] {
   return m ? [m[1], m[2]] : [spoken];
 }
 
-const cacheKey = (voice: string, seg: string) => `${MODEL}|${STYLE_VERSION}|${voice}|${seg}`;
+const isDevice = () => useApp.getState().settings.voiceEngine === 'ondevice';
+const cacheKey = (voice: string, seg: string) => (isDevice() ? `kokoro|${DEVICE_STYLE_VERSION}|${voice}|${seg}` : `${MODEL}|${STYLE_VERSION}|${voice}|${seg}`);
 
 // ---- storage: decoded audio in memory, the mp3 bytes in IndexedDB so they survive a restart ----
 const mem = new Map<string, AudioBuffer>();
@@ -86,6 +91,7 @@ async function dbPut(key: string, bytes: ArrayBuffer): Promise<void> {
     t.onerror = () => resolve();
   });
 }
+/** Forget every saved take, from both voices. */
 export async function clearPremiumAudio(): Promise<void> {
   mem.clear();
   const d = await db();
@@ -98,7 +104,15 @@ export async function clearPremiumAudio(): Promise<void> {
   });
 }
 
-async function decode(bytes: ArrayBuffer): Promise<AudioBuffer> {
+async function decode(bytes: ArrayBuffer, key: string): Promise<AudioBuffer> {
+  if (key.startsWith('kokoro|')) {
+    // on-phone voice: raw 16-bit samples
+    const pcm = new Int16Array(bytes);
+    const buf = new OfflineAudioContext(1, 1, DEVICE_RATE).createBuffer(1, Math.max(1, pcm.length), DEVICE_RATE);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+    return buf;
+  }
   return new OfflineAudioContext(1, 1, 24000).decodeAudioData(bytes.slice(0));
 }
 
@@ -135,7 +149,7 @@ async function request(seg: string, voice: string, key: string, signal?: AbortSi
 const inflight = new Map<string, Promise<AudioBuffer>>();
 
 /** One take: from memory, then the phone's store, then the service. */
-async function segmentBuffer(seg: string, voice: string, key: string, signal?: AbortSignal): Promise<AudioBuffer> {
+async function segmentBuffer(seg: string, voice: string, key: string, signal?: AbortSignal, make = true): Promise<AudioBuffer> {
   const k = cacheKey(voice, seg);
   const hit = mem.get(k);
   if (hit) return hit;
@@ -144,11 +158,17 @@ async function segmentBuffer(seg: string, voice: string, key: string, signal?: A
   const p = (async () => {
     let bytes = await dbGet(k);
     if (!bytes) {
-      if (!key) throw new PremiumError('No key set.', 'key');
-      bytes = await request(seg, voice, key, signal);
+      if (k.startsWith('kokoro|')) {
+        if (!make) throw new PremiumError('This call is not made yet.', 'other');
+        const pcm = await deviceSynth(seg, voice as DeviceVoice, signal);
+        bytes = pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.byteLength) as ArrayBuffer;
+      } else {
+        if (!key) throw new PremiumError('No key set.', 'key');
+        bytes = await request(seg, voice, key, signal);
+      }
       await dbPut(k, bytes);
     }
-    const buf = await decode(bytes);
+    const buf = await decode(bytes, k);
     mem.set(k, buf);
     return buf;
   })().finally(() => inflight.delete(k));
@@ -158,11 +178,13 @@ async function segmentBuffer(seg: string, voice: string, key: string, signal?: A
 
 const cfg = () => {
   const s = useApp.getState().settings;
+  if (s.voiceEngine === 'ondevice') return { on: true, key: '', voice: s.deviceVoice as string };
   return { on: s.voiceEngine === 'premium' && s.premiumKey.trim().length > 20, key: s.premiumKey.trim(), voice: s.premiumVoice as string };
 };
 
 export const premiumOn = () => cfg().on;
-export const premiumOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+/** True when a call that is not in memory can still be had quickly: from the phone's store, or from the service if there is signal. */
+export const premiumOnline = () => isDevice() || typeof navigator === 'undefined' || navigator.onLine !== false;
 
 /** The takes for a call if every one is already on the phone, else null. */
 export function premiumBuffers(text: string): AudioBuffer[] | null {
@@ -178,10 +200,12 @@ export function premiumBuffers(text: string): AudioBuffer[] | null {
 }
 
 /** Fetch (or load) every take of a call. Rejects on any failure. */
-export async function premiumFetch(text: string, signal?: AbortSignal): Promise<AudioBuffer[]> {
+export async function premiumFetch(text: string, signal?: AbortSignal, make = false): Promise<AudioBuffer[]> {
   const c = cfg();
   if (!c.on) throw new PremiumError('Premium voice is off.', 'other');
-  return Promise.all(splitSegments(text).map((s) => segmentBuffer(s, c.voice, c.key, signal)));
+  // the on-phone voice is only ever made on request (Prepare voice, Test voice), never in the middle of a drive
+  const allow = !isDevice() || make;
+  return Promise.all(splitSegments(text).map((s) => segmentBuffer(s, c.voice, c.key, signal, allow)));
 }
 
 export const takePause = PAUSE_S;
@@ -238,12 +262,64 @@ export const estimateCents = (segs: string[]): number => {
 export interface PrepareState {
   done: number;
   total: number;
+  /** on-phone voice: the one-off model download comes first */
+  download?: { loaded: number; total: number };
+  /** on-phone voice: rough seconds left */
+  etaSec?: number;
 }
 
-/** Fetch every missing take, three at a time. Resolves when all are on the phone. */
+/** Load takes already kept on the phone (from an earlier visit) into memory, so a road shows as ready after a restart. */
+export async function loadStored(segs: string[]): Promise<void> {
+  const c = cfg();
+  if (!c.on) return;
+  await Promise.all(
+    segs.map((seg) => {
+      const k = cacheKey(c.voice, seg);
+      if (mem.has(k)) return undefined;
+      return dbGet(k).then(async (b) => {
+        if (b) mem.set(k, await decode(b, k));
+      });
+    }),
+  );
+}
+
+/** Make the on-phone voice's takes one at a time (the phone has one fast core to spare for this). */
+async function prepareOnDevice(todo: string[], onProgress: (p: PrepareState) => void, signal: AbortSignal): Promise<void> {
+  const c = cfg();
+  const total = todo.length;
+  onProgress({ done: 0, total, download: { loaded: 0, total: 0 } });
+  try {
+    await deviceStart((loaded, size) => onProgress({ done: 0, total, download: { loaded, total: size } }));
+    const began = Date.now();
+    const skipped: string[] = [];
+    let done = 0;
+    onProgress({ done, total });
+    for (const seg of todo) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      try {
+        await segmentBuffer(seg, c.voice, c.key, signal, true);
+      } catch (e) {
+        // a take with a word the voice has no pronunciation for stays with the recorded voice
+        if (e instanceof DeviceVoiceError && e.code === 'unknown') {
+          skipped.push(seg);
+        } else if (e instanceof DeviceVoiceError) throw new PremiumError(e.message, e.code === 'network' ? 'network' : 'other');
+        else throw e;
+      }
+      done++;
+      const per = (Date.now() - began) / done;
+      onProgress({ done, total, etaSec: Math.round((per * (total - done)) / 1000) });
+    }
+  } finally {
+    release();
+  }
+}
+
+/** Fetch (or make) every missing take. Resolves when all are on the phone. */
 export async function prepareVoice(segs: string[], onProgress: (p: PrepareState) => void, signal: AbortSignal): Promise<void> {
   const c = cfg();
+  await loadStored(segs);
   const todo = missingSegments(segs);
+  if (isDevice()) return prepareOnDevice(todo, onProgress, signal);
   const total = todo.length;
   let done = 0;
   onProgress({ done, total });
@@ -271,4 +347,14 @@ export async function prepareVoice(segs: string[], onProgress: (p: PrepareState)
   };
   await Promise.all([worker(), worker(), worker()]);
   if (failure) throw failure;
+}
+
+/** Make one call with the on-phone voice right now (for "Test voice"). Downloads the model the first time. */
+export async function makeSample(text: string, progress: (loaded: number, total: number) => void): Promise<void> {
+  try {
+    await deviceStart(progress);
+    await premiumFetch(text, undefined, true);
+  } finally {
+    release();
+  }
 }
