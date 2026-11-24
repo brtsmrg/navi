@@ -5,8 +5,10 @@ import App from './App';
 import './styles/index.css';
 import { installErrorBanner } from './lib/errorBanner';
 import { ensureFresh } from './lib/freshness';
+import { consumeHomeLink } from './lib/homeLink';
 
 installErrorBanner();
+consumeHomeLink();
 void ensureFresh();
 
 // Service workers only exist on http(s); the native shells load from other schemes.

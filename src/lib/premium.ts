@@ -5,6 +5,8 @@
  *    A call that was not prepared is fetched on the spot when there is signal.
  *  - On-phone (free): the Kokoro model runs on the phone itself. It is too slow to speak during a drive, so every call on
  *    the road is made before the ride; a call that is not ready is covered by the recorded words.
+ *  - Home PC: a Chatterbox voice server on the driver's own PC graphics card, reached through a secure tunnel the PC sets up.
+ *    Same as Premium, but free: calls are made ahead and kept, and the recorded voice covers any call that is not ready.
  * Either way the recorded voice covers any call that cannot be played in time.
  *
  * The OpenAI key lives only in this phone's settings and is sent only to api.openai.com over HTTPS.
@@ -55,7 +57,10 @@ export function splitSegments(text: string): string[] {
 }
 
 const isDevice = () => useApp.getState().settings.voiceEngine === 'ondevice';
-const cacheKey = (voice: string, seg: string) => (isDevice() ? `kokoro|${DEVICE_STYLE_VERSION}|${voice}|${seg}` : `${MODEL}|${STYLE_VERSION}|${voice}|${seg}`);
+const isHome = () => useApp.getState().settings.voiceEngine === 'home';
+/** Bump when the home voice's speaking style changes, so old audio is not reused. */
+const HOME_STYLE_VERSION = 1;
+const cacheKey = (voice: string, seg: string) => (isDevice() ? `kokoro|${DEVICE_STYLE_VERSION}|${voice}|${seg}` : isHome() ? `chatterbox|${HOME_STYLE_VERSION}|${voice}|${seg}` : `${MODEL}|${STYLE_VERSION}|${voice}|${seg}`);
 
 // ---- storage: decoded audio in memory, the mp3 bytes in IndexedDB so they survive a restart ----
 const mem = new Map<string, AudioBuffer>();
@@ -127,22 +132,25 @@ export class PremiumError extends Error {
 
 async function request(seg: string, voice: string, key: string, signal?: AbortSignal): Promise<ArrayBuffer> {
   let res: Response;
+  const home = isHome();
+  const where = home ? 'The home voice' : 'The voice service';
   try {
-    res = await fetch(ENDPOINT, {
+    res = await fetch(home ? `${useApp.getState().settings.homeUrl}/v1/audio/speech` : ENDPOINT, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, voice, input: seg, instructions: INSTRUCTIONS, response_format: 'mp3' }),
+      body: JSON.stringify(home ? { model: 'chatterbox', voice: 'default', input: seg, response_format: 'wav' } : { model: MODEL, voice, input: seg, instructions: INSTRUCTIONS, response_format: 'mp3' }),
       signal,
       referrerPolicy: 'no-referrer',
       credentials: 'omit',
     });
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e;
-    throw new PremiumError('No signal, or the voice service could not be reached.', 'network');
+    throw new PremiumError(home ? 'The home voice could not be reached. Is the voice window open on your PC? Scan its code again if it was restarted.' : 'No signal, or the voice service could not be reached.', 'network');
   }
-  if (res.status === 401) throw new PremiumError('The key was not accepted. Check it was copied in full.', 'key');
+  if (res.status === 401) throw new PremiumError(home ? 'The home voice did not accept this phone. Scan the code on your PC again.' : 'The key was not accepted. Check it was copied in full.', 'key');
   if (res.status === 429) throw new PremiumError('The voice service says the key has no credit left or is going too fast.', 'quota');
-  if (!res.ok) throw new PremiumError(`The voice service answered with an error (${res.status}).`, 'other');
+  if (res.status === 503 && home) throw new PremiumError('The home voice is still starting on your PC. Wait a minute and try again.', 'other');
+  if (!res.ok) throw new PremiumError(`${where} answered with an error (${res.status}).`, 'other');
   return res.arrayBuffer();
 }
 
@@ -179,6 +187,7 @@ async function segmentBuffer(seg: string, voice: string, key: string, signal?: A
 const cfg = () => {
   const s = useApp.getState().settings;
   if (s.voiceEngine === 'ondevice') return { on: true, key: '', voice: s.deviceVoice as string };
+  if (s.voiceEngine === 'home') return { on: s.homeUrl.length > 8 && s.homeToken.length > 15, key: s.homeToken, voice: 'home' };
   return { on: s.voiceEngine === 'premium' && s.premiumKey.trim().length > 20, key: s.premiumKey.trim(), voice: s.premiumVoice as string };
 };
 
@@ -323,6 +332,7 @@ export async function prepareVoice(segs: string[], onProgress: (p: PrepareState)
   const total = todo.length;
   let done = 0;
   onProgress({ done, total });
+  const began = Date.now();
   let next = 0;
   let failure: unknown;
   const worker = async () => {
@@ -342,10 +352,11 @@ export async function prepareVoice(segs: string[], onProgress: (p: PrepareState)
         }
       }
       done++;
-      onProgress({ done, total });
+      const per = (Date.now() - began) / done;
+      onProgress({ done, total, etaSec: Math.round((per * (total - done)) / 1000) });
     }
   };
-  await Promise.all([worker(), worker(), worker()]);
+  await Promise.all(Array.from({ length: isHome() ? 2 : 3 }, worker));
   if (failure) throw failure;
 }
 

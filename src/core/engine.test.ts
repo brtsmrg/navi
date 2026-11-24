@@ -6,6 +6,7 @@ import {
   cornerSpeedMps,
   drive,
   demoStage,
+  openTestStage,
   estimateSpeechMs,
   fullLabel,
   generateStage,
@@ -295,5 +296,16 @@ describe('full-word labels', () => {
     expect(fullLabel({ ...base, kind: 'roundabout', side: undefined, mods: { exitCount: 2 } }).headline).toBe('Roundabout, 2nd exit');
     expect(fullLabel({ ...base, kind: 'finish', side: undefined }).headline).toBe('Arrive');
     expect(fullLabel({ ...base, kind: 'junction', mods: { sharpness: 'sharp' } }).headline).toBe('Turn sharp left');
+  });
+});
+
+describe('open test road', () => {
+  const stage = generateStage(openTestStage());
+  it('leaves room for every call: 300 m or more between turns, ~5 km, hairpin included', () => {
+    const turns = stage.notes.filter((n) => n.kind === 'corner');
+    expect(turns.length).toBeGreaterThanOrEqual(10);
+    for (let i = 1; i < turns.length; i++) expect(turns[i].s - turns[i - 1].sEnd).toBeGreaterThanOrEqual(300);
+    expect(stage.path.length).toBeGreaterThan(4500);
+    expect(turns.some((n) => (n.angleDeg ?? 0) > 150)).toBe(true);
   });
 });

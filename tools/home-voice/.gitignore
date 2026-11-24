@@ -1,0 +1,11 @@
+venv/
+token.txt
+cloudflared.exe
+samples/
+*.log
+install-log.txt
+run-log.txt
+last-link.txt
+connect.html
+voice-settings.json
+reference.wav

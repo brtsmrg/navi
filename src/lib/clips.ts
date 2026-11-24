@@ -60,7 +60,7 @@ export const clipsFailed = () => failed;
 
 function wanted(): { on: boolean; id: ClipVoice } {
   const s = useApp.getState().settings;
-  return { on: s.voiceEngine === 'recorded' || ((s.voiceEngine === 'premium' || s.voiceEngine === 'ondevice') && premiumOn()), id: s.clipVoice };
+  return { on: s.voiceEngine === 'recorded' || ((s.voiceEngine === 'premium' || s.voiceEngine === 'ondevice' || s.voiceEngine === 'home') && premiumOn()), id: s.clipVoice };
 }
 
 /** Start loading the chosen voice as soon as the app (or the setting) asks for it. */

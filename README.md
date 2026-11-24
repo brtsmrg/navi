@@ -38,3 +38,7 @@ Map data © OpenStreetMap contributors (ODbL). Tiles by OpenFreeMap. License: no
 
 ## Brand
 The logo is "Navi." in Barlow Condensed Bold Italic with a red full stop. `python3 brand/make-logo.py` rebuilds everything from the font: the app icon and splash, every colour version and event variant in `brand/logo/` (dark, light, red, yellow, mono, stacked, wide "Navi. Rally", round badges), and the native icons in `brand/native/`. `npm run icons` renders the PWA icons from `public/favicon.svg`. Older, rejected concepts remain in `brand/` for reference. Trademark hand-over note: [docs/TRADEMARK-BRIEF.md](docs/TRADEMARK-BRIEF.md).
+
+## Home PC voice (optional, free)
+
+`tools/home-voice/` runs the Chatterbox text-to-speech model on a Windows PC with an NVIDIA graphics card. `install.bat` sets it up once, `run.bat` starts it and shows a QR code. Scanning the code with the phone connects Navi to the PC over an HTTPS tunnel; the link carries a private token, only `https://*.trycloudflare.com` addresses are accepted, and the server only answers Navi's own web address. Use Settings → Voice type → Home PC, then Prepare voice on each road.

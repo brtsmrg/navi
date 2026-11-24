@@ -20,7 +20,7 @@ if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo Free on-phone co-driver voice (Kokoro, made per road, no GPL pronunciation engine)
+> "%TEMP%\navi-update-msg.txt" echo Home PC voice: free natural co-driver voice made on the PC graphics card
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7

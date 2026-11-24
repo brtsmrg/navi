@@ -71,3 +71,24 @@ export function demoStage(): Route {
   r.name = 'Demo stage';
   return r;
 }
+
+/**
+ * A calm test road: every turn has at least 300 m of road before the next one, so each call has
+ * room for its full sentence ("In two hundred metres, medium left tightening."). About 5 km, all
+ * severities, one hairpin. Tight chains are a known edge case and are deliberately not here.
+ */
+export function openTestStage(): Route {
+  const L = (radius: number, angleDeg: number): SynthSegment => ({ type: 'arc', radius, angleDeg, side: 'L' });
+  const R = (radius: number, angleDeg: number): SynthSegment => ({ type: 'arc', radius, angleDeg, side: 'R' });
+  const S = (length: number): SynthSegment => ({ type: 'straight', length });
+  const r = synthRoute(
+    [
+      S(450), R(160, 45), S(420), L(100, 70), S(500), R(70, 90), S(450),
+      L(240, 40), S(600), R(45, 100), S(500), L(120, 60), S(420),
+      R(32, 170), S(550), L(180, 50), S(480), R(80, 80), S(520), L(60, 95), S(450),
+    ],
+    { stepM: 2, origin: [-75.62, 45.52] },
+  );
+  r.name = 'Open test road';
+  return r;
+}

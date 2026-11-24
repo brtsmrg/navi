@@ -28,11 +28,14 @@ export interface Settings {
   speechRate: number;
   voiceURI: string;
   /** Recorded co-driver voice (default) or the phone's own built-in voice. */
-  voiceEngine: 'recorded' | 'phone' | 'premium' | 'ondevice';
+  voiceEngine: 'recorded' | 'phone' | 'premium' | 'ondevice' | 'home';
   clipVoice: 'george' | 'michael' | 'emma' | 'heart';
   /** The driver's own OpenAI key for the premium voice. Stays on this device. */
   premiumKey: string;
   premiumVoice: 'ash' | 'onyx' | 'echo' | 'verse' | 'coral' | 'shimmer';
+  /** Home voice: the address and private token of the driver's own PC voice server. Stay on this device. */
+  homeUrl: string;
+  homeToken: string;
   /** Free on-phone voice (Kokoro): which co-driver. */
   deviceVoice: 'bm_lewis' | 'bm_george' | 'am_adam' | 'am_michael' | 'bf_emma' | 'af_heart';
   muted: boolean;
@@ -67,6 +70,8 @@ export const DEFAULTS: Settings = {
   premiumKey: '',
   premiumVoice: 'ash',
   deviceVoice: 'bm_lewis',
+  homeUrl: '',
+  homeToken: '',
   muted: false,
   safetyAccepted: false,
   stageAttested: false,

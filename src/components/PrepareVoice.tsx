@@ -22,8 +22,10 @@ export function PrepareVoice({ stage }: { stage: Stage }) {
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
   const abort = useRef<AbortController | null>(null);
+  const homeOk = useApp((s) => s.settings.homeUrl.length > 8 && s.settings.homeToken.length > 15);
   const device = engine === 'ondevice';
-  const on = device || (engine === 'premium' && key.trim().length > 20);
+  const home = engine === 'home';
+  const on = device || (home && homeOk) || (engine === 'premium' && key.trim().length > 20);
 
   const segs = useMemo(() => (on ? routeSegments(stage, useApp.getState().settings) : []), [on, stage, dialect, units, leadSec, speechRate]);
   // takes kept from an earlier visit count as made: load them, then look again
@@ -59,7 +61,7 @@ export function PrepareVoice({ stage }: { stage: Stage }) {
   const mb = (n: number) => Math.round(n / 1e5) / 10;
   return (
     <div className="space-y-2 rounded-2xl bg-bg p-3">
-      <div className="flex items-center gap-2 text-sm font-medium"><Mic size={16} /> {device ? 'Free voice for this road' : 'Premium voice for this road'}</div>
+      <div className="flex items-center gap-2 text-sm font-medium"><Mic size={16} /> {device ? 'Free voice for this road' : home ? 'Home PC voice for this road' : 'Premium voice for this road'}</div>
       {busy ? (
         <>
           <div className="h-2 overflow-hidden rounded-full bg-raise" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done}>
@@ -77,6 +79,11 @@ export function PrepareVoice({ stage }: { stage: Stage }) {
       ) : device ? (
         <>
           <p className="text-sm text-mute">{todo.length} parts to make on your phone, free. The first time it also downloads the voice ({MODEL_MB} MB, use Wi-Fi). Plug in, keep the screen on, and expect a few minutes. You only do this once per road. A call that is not ready is spoken by the recorded voice.</p>
+          <Button variant="raise" className="w-full" onClick={run}>Prepare voice</Button>
+        </>
+      ) : home ? (
+        <>
+          <p className="text-sm text-mute">{todo.length} parts to make on your PC's graphics card, free. Keep the voice window open on your PC. You only do this once per road. A call that is not ready is spoken by the recorded voice.</p>
           <Button variant="raise" className="w-full" onClick={run}>Prepare voice</Button>
         </>
       ) : (

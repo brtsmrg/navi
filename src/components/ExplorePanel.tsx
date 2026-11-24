@@ -4,7 +4,7 @@ import { generateStage, type Stage } from '@/core';
 import { parseGpx } from '@/providers/gpx';
 import { buildShareUrl } from '@/providers/share';
 import { useEdits } from '@/lib/edits';
-import { chooseDestination, clearRoute, loadSampleRoad, SAMPLE_FROM, fmtArrival, fmtDistance, fmtDuration, locateHere, planRoute } from '@/lib/flow';
+import { chooseDestination, clearRoute, loadSampleRoad, loadOpenTestRoad, SAMPLE_FROM, fmtArrival, fmtDistance, fmtDuration, locateHere, planRoute } from '@/lib/flow';
 import { useLibrary } from '@/lib/library';
 import { useApp } from '@/lib/store';
 import { cn, SEV_COLOR } from '@/lib/cn';
@@ -182,6 +182,9 @@ function HomeView() {
         <div className="grid grid-cols-2 gap-2">
           <Button variant="raise" onClick={() => void loadSampleRoad()}>
             <Wand2 size={18} /> Try a real twisty road
+          </Button>
+          <Button variant="raise" onClick={() => loadOpenTestRoad()}>
+            <Wand2 size={18} /> Try an open test road
           </Button>
           <Button variant="raise" onClick={() => file.current?.click()}>
             <Upload size={18} /> Load a GPX file

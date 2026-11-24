@@ -80,6 +80,20 @@ export function SettingsDialog() {
   const testVoice = () => {
     unlockAudio(); // inside the tap, so iOS and Chrome allow sound
     setVoiceMsg('');
+    if (st.voiceEngine === 'home') {
+      if (st.homeUrl.length <= 8 || st.homeToken.length <= 15) {
+        setVoiceMsg('Not connected. Start run.bat on your PC and scan the code it shows.');
+        return;
+      }
+      setVoiceMsg('Asking your PC…');
+      void premiumFetch(sample)
+        .then(() => {
+          setVoiceMsg('');
+          say(sample, { rate: st.speechRate, voiceURI: st.voiceURI, volume: st.volume, interrupt: true });
+        })
+        .catch((e: unknown) => setVoiceMsg(e instanceof PremiumError ? e.message : 'The home voice could not be made. Try again.'));
+      return;
+    }
     if (st.voiceEngine === 'ondevice') {
       setVoiceMsg(`Getting the voice ready. The first time it downloads ${MODEL_MB} MB…`);
       void makeSample(sample, (loaded, total) => setVoiceMsg(`Downloading the voice, once: ${Math.round(loaded / 1e5) / 10} of ${total ? Math.round(total / 1e5) / 10 : MODEL_MB} MB`))
@@ -158,7 +172,28 @@ export function SettingsDialog() {
           </div>
           {voiceMsg && <p role="status" className="text-sm text-sev3">{voiceMsg}</p>}
           <SoundReport voices={voices.length} tick={voiceMsg} />
-          <Segmented<'ondevice' | 'premium' | 'recorded' | 'phone'> label="Voice type" value={st.voiceEngine} onChange={(voiceEngine) => set({ voiceEngine })} options={[{ value: 'ondevice', label: 'Free' }, { value: 'premium', label: 'Premium' }, { value: 'recorded', label: 'Recorded' }, { value: 'phone', label: 'Phone' }]} />
+          <label className="block space-y-1">
+            <span className="text-sm">Voice type</span>
+            <select value={st.voiceEngine} onChange={(e) => set({ voiceEngine: e.target.value as typeof st.voiceEngine })} className="min-h-12 w-full rounded-xl bg-bg px-3 text-[16px]">
+              <option value="home">Home PC (free, most natural)</option>
+              <option value="ondevice">Free on-phone</option>
+              <option value="premium">Premium (OpenAI key)</option>
+              <option value="recorded">Recorded words</option>
+              <option value="phone">Phone's own voice</option>
+            </select>
+          </label>
+          {st.voiceEngine === 'home' && (
+            <>
+              <p className="text-sm text-mute">
+                {st.homeUrl ? `Connected to your PC voice (${st.homeUrl.replace('https://', '').slice(0, 24)}…). ` : 'Not connected yet. '}
+                A natural voice made on your PC's graphics card, free. On the PC, double-click run.bat in the navi-voice folder and scan the code it shows with this phone's camera. Then open a road and tap Prepare voice: the calls are kept on this phone, so driving works with no signal and the PC can be off. A call that is not ready is spoken by the recorded voice.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="raise" onClick={() => { void clearPremiumAudio().then(() => setVoiceMsg('Saved voice audio cleared from this phone.')); }}>Clear saved audio</Button>
+                <Button variant="raise" onClick={() => { set({ homeUrl: '', homeToken: '' }); setVoiceMsg('Disconnected from the PC voice.'); }}>Disconnect</Button>
+              </div>
+            </>
+          )}
           {st.voiceEngine === 'ondevice' && (
             <>
               <Segmented<DeviceVoice> label="Co-driver" value={st.deviceVoice} onChange={(deviceVoice) => set({ deviceVoice })} options={DEVICE_VOICES.map((v) => ({ value: v.id, label: v.name }))} />
