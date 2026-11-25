@@ -14,6 +14,7 @@ if not exist ".git" (
   echo This folder is not the Navi repo: %CD%
   goto :end
 )
+git rm --cached -q --ignore-unmatch push-update-log.txt push-log.txt >nul 2>&1
 git add -A >> "%LOG%" 2>&1
 git diff --cached --quiet
 if not errorlevel 1 (
@@ -34,7 +35,7 @@ if errorlevel 1 (
 git push origin main >> "%LOG%" 2>&1
 if errorlevel 1 (
   echo First push failed, trying to sync first. >> "%LOG%"
-  git -c user.name="brtsmrg" -c user.email="brtsmrg@users.noreply.github.com" pull --rebase origin main >> "%LOG%" 2>&1
+  git -c user.name="brtsmrg" -c user.email="brtsmrg@users.noreply.github.com" pull --rebase --autostash origin main >> "%LOG%" 2>&1
   git push origin main >> "%LOG%" 2>&1
   if errorlevel 1 (
     echo Push failed. See push-update-log.txt >> "%LOG%"
