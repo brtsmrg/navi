@@ -66,4 +66,28 @@ describe('overpass road data', () => {
     vi.stubGlobal('fetch', async () => ({ ok: false, status: 429, json: async () => ({}) }));
     await expect(fetchCell({ i: 3, j: 4 })).rejects.toThrow(/429/);
   });
+
+  it('tries the whole list again when every server is busy the first time', async () => {
+    let n = 0;
+    vi.stubGlobal('fetch', async () => {
+      n++;
+      if (n <= 3) return { ok: false, status: 502, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => sample };
+    });
+    const a = await fetchCell({ i: 5, j: 6 });
+    expect(a).toHaveLength(3);
+    expect(n).toBe(4); // three servers failed, then the first one answered in round two
+  });
+
+  it('stops at once when the caller cancels', async () => {
+    const ctl = new AbortController();
+    let n = 0;
+    vi.stubGlobal('fetch', async () => {
+      n++;
+      ctl.abort();
+      throw new Error('aborted');
+    });
+    await expect(fetchCell({ i: 7, j: 8 }, ctl.signal)).rejects.toThrow();
+    expect(n).toBe(1);
+  });
 });

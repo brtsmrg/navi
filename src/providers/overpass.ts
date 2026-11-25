@@ -7,7 +7,14 @@ import type { Hazard } from '@/core/hazards';
  * no account, nothing about the driver is sent beyond the map square being asked for). The map is
  * fetched in small squares and kept, so a drive re-uses what it has already seen.
  */
-export const OVERPASS_MIRRORS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'] as const;
+export const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+] as const;
+/** Whole list is tried this many times, with a short pause between rounds. The public servers are often overloaded. */
+const ROUNDS = 2;
+const ROUND_PAUSE_MS = 1500;
 
 /** Size of one map square in degrees (about 1.1 km north to south). */
 export const CELL_DEG = 0.01;
@@ -91,20 +98,23 @@ async function fetchOne(url: string, query: string, signal: AbortSignal): Promis
 /** Ask the public servers one question, trying each in turn. Nothing is kept. */
 async function fetchJson(query: string, timeoutMs: number, outer?: AbortSignal): Promise<unknown> {
   let last: unknown;
-  for (const url of OVERPASS_MIRRORS) {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), timeoutMs);
-    const onOuter = () => ctl.abort();
-    outer?.addEventListener('abort', onOuter);
-    try {
-      return await fetchOne(url, query, ctl.signal);
-    } catch (e) {
-      last = e;
-      if (outer?.aborted) break;
-    } finally {
-      clearTimeout(timer);
-      outer?.removeEventListener('abort', onOuter);
+  for (let round = 0; round < ROUNDS; round++) {
+    for (const url of OVERPASS_MIRRORS) {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), timeoutMs);
+      const onOuter = () => ctl.abort();
+      outer?.addEventListener('abort', onOuter);
+      try {
+        return await fetchOne(url, query, ctl.signal);
+      } catch (e) {
+        last = e;
+        if (outer?.aborted) throw last instanceof Error ? last : new Error('Road data request cancelled');
+      } finally {
+        clearTimeout(timer);
+        outer?.removeEventListener('abort', onOuter);
+      }
     }
+    if (round < ROUNDS - 1) await new Promise((r) => setTimeout(r, ROUND_PAUSE_MS));
   }
   throw last instanceof Error ? last : new Error('Road data is not reachable');
 }
@@ -128,9 +138,9 @@ function fetchKeyed(k: string, query: string, timeoutMs: number, outer?: AbortSi
   return p;
 }
 
-/** One map square, from memory when seen before. Tries each server in turn, 9 s each. */
+/** One map square, from memory when seen before. Tries each server in turn, 15 s each, twice round. */
 export function fetchCell(c: Cell, outer?: AbortSignal): Promise<RoadWay[]> {
-  return fetchKeyed(cellKey(c), buildQuery(c), 9000, outer);
+  return fetchKeyed(cellKey(c), buildQuery(c), 15000, outer);
 }
 
 /* Fun loop: a wide area of the roads worth driving (no small residential streets), in big tiles. */

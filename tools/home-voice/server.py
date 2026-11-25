@@ -21,7 +21,7 @@ MAX_CHARS = 400
 
 # how the voice is asked to sound: more "exaggeration" = more expressive; lower cfg = faster, less drawn out
 SETTINGS_FILE = HERE / 'voice-settings.json'
-DEFAULTS = {'exaggeration': 0.7, 'cfg_weight': 0.5, 'temperature': 0.7, 'pace': 1.0, 'bang': True, 'bright': 1.4, 'comp': 0.8, 'air': 0.12, 'reference': 'reference-sharp.wav', 'style_version': 3}
+DEFAULTS = {'exaggeration': 0.7, 'cfg_weight': 0.5, 'temperature': 0.7, 'pace': 1.0, 'bang': True, 'bright': 1.4, 'comp': 0.8, 'air': 0.12, 'reference': 'reference-sharp.wav', 'takes': 3, 'style_version': 4}
 
 
 def settings() -> dict:
@@ -136,15 +136,68 @@ def sharpen(a: np.ndarray, sr: int, amount: float = 1.0, comp: float = 0.0, air:
     return out.astype(np.float32)
 
 
-def finish(a: np.ndarray, pace: float, bright: float = 1.0, comp: float = 0.0, air: float = 0.0) -> np.ndarray:
-    """Cut the silence off both ends, sharpen, even loudness, soft edges. (No time stretching: it made the voice sound underwater.)"""
+def speech_segments(a: np.ndarray, sr: int, rel_db: float = -35.0, merge_s: float = 0.09):
+    """Where the voice is actually speaking: (start, end, peak in dB below the loudest part), short gaps joined."""
+    from scipy.ndimage import uniform_filter1d
+
+    env = np.sqrt(np.maximum(uniform_filter1d(a.astype(np.float64) ** 2, max(3, int(0.01 * sr))), 0.0))
+    top = float(env.max())
+    if top < 1e-6:
+        return []
+    on = env > top * 10 ** (rel_db / 20)
+    edges = np.flatnonzero(np.diff(np.concatenate(([0], on.astype(np.int8), [0]))))
+    runs = [[int(edges[i]), int(edges[i + 1])] for i in range(0, len(edges), 2)]
+    merged = []
+    for r in runs:
+        if merged and (r[0] - merged[-1][1]) / sr < merge_s:
+            merged[-1][1] = r[1]
+        else:
+            merged.append(r)
+    return [(s0, s1, 20 * np.log10(max(float(env[s0:s1].max()), 1e-9) / top)) for s0, s1 in merged]
+
+
+def drop_junk_edges(a: np.ndarray, sr: int):
+    """Voice models sometimes add a faint blip, breath or half-word after the last real word (short calls most of all).
+    Cut any quiet, short burst at the end (or start) that stands apart from the speech. Returns (audio, ms removed)."""
+    segs = speech_segments(a, sr)
+    if len(segs) < 2:
+        return a, 0
+    lo, hi = 0, len(segs)
+    while hi - lo > 1:
+        s0, s1, db = segs[hi - 1]
+        dur = (s1 - s0) / sr
+        gap = (s0 - segs[hi - 2][1]) / sr
+        if (db < -14 and dur < 0.45 and gap > 0.06) or dur < 0.10:
+            hi -= 1
+        else:
+            break
+    while hi - lo > 1:
+        s0, s1, db = segs[lo]
+        dur = (s1 - s0) / sr
+        gap = (segs[lo + 1][0] - s1) / sr
+        if (db < -14 and dur < 0.30 and gap > 0.06) or dur < 0.06:
+            lo += 1
+        else:
+            break
+    start, end = segs[lo][0], segs[hi - 1][1]
+    removed = (sum(e - b for b, e, _ in segs[:lo]) + sum(e - b for b, e, _ in segs[hi:])) / sr * 1000
+    pad = int(sr * 0.03)
+    return a[max(0, start - pad): min(a.size, end + pad)], int(round(removed))
+
+
+def finish(a: np.ndarray, pace: float, bright: float = 1.0, comp: float = 0.0, air: float = 0.0):
+    """Cut junk off both ends (judged on the raw voice, before the compressor lifts quiet sounds), sharpen, even loudness,
+    soft edges. Returns (audio, ms of junk removed). (No time stretching: it made the voice sound underwater.)"""
     a = np.asarray(a, dtype=np.float32).reshape(-1)
     if a.size == 0:
-        return a
+        return a, 0
+    if float(np.max(np.abs(a))) < 1e-4:
+        return a, 0
+    a, junk_ms = drop_junk_edges(a, SR)
     a = sharpen(a, SR, bright, comp, air)
     peak = float(np.max(np.abs(a)))
     if peak < 1e-4:
-        return a
+        return a, junk_ms
     floor = peak * 0.03
     idx = np.where(np.abs(a) > floor)[0]
     pad = int(SR * 0.03)
@@ -155,28 +208,58 @@ def finish(a: np.ndarray, pace: float, bright: float = 1.0, comp: float = 0.0, a
         ramp = np.linspace(0, 1, fade, dtype=np.float32)
         a[:fade] *= ramp
         a[-fade:] *= ramp[::-1]
-    return a
+    return a, junk_ms
+
+
+def words_in(text: str) -> int:
+    return max(1, len(re.findall(r"[A-Za-z0-9]+", text)))
+
+
+def take_ok(dur: float, words: int) -> bool:
+    """A take is believable when its length fits the number of words (too short = cut off, too long = rambling)."""
+    return 0.18 * words + 0.2 <= dur <= 0.62 * words + 0.9
+
+
+LAST = {}  # what the last call did, for the logs and the sample maker
 
 
 def synth(text: str) -> bytes:
     s = settings()
     t = prep_text(text, s)
+    words = words_in(t)
+    takes = max(1, int(s.get('takes', 3)))
+    best = None  # (score, audio, info)
     with _lock:
-        if FAKE:
-            n = int(SR * (0.25 + 0.06 * len(t)))
-            tt = np.arange(n) / SR
-            a = (0.3 * np.sin(2 * np.pi * 220 * tt)).astype(np.float32)
-        else:
-            import torch
+        for k in range(takes):
+            if FAKE:
+                n = int(SR * (0.25 + 0.06 * len(t)))
+                tt = np.arange(n) / SR
+                raw = (0.3 * np.sin(2 * np.pi * 220 * tt)).astype(np.float32)
+            else:
+                import torch
 
-            ref = HERE / s['reference'] if s['reference'] != 'none' else None
-            kw = dict(exaggeration=s['exaggeration'], cfg_weight=s['cfg_weight'], temperature=s['temperature'])
-            if ref is not None and ref.exists():
-                kw['audio_prompt_path'] = str(ref)
-            with torch.inference_mode():
-                wav = _model.generate(t, **kw)
-            a = wav.squeeze().detach().cpu().numpy()
-    a = finish(a, s['pace'], s['bright'], s['comp'], s['air'])
+                ref = HERE / s['reference'] if s['reference'] != 'none' else None
+                kw = dict(exaggeration=s['exaggeration'], cfg_weight=s['cfg_weight'], temperature=s['temperature'])
+                if ref is not None and ref.exists():
+                    kw['audio_prompt_path'] = str(ref)
+                torch.manual_seed(1000 + k)
+                with torch.inference_mode():
+                    wav = _model.generate(t, **kw)
+                raw = wav.squeeze().detach().cpu().numpy()
+            a, junk_ms = finish(raw, s['pace'], s['bright'], s['comp'], s['air'])
+            dur = a.size / SR
+            ok = take_ok(dur, words)
+            # lower is better: believable length first, then nothing cut, then the shortest (fewest odd pauses)
+            score = (0 if ok else 1, 1 if junk_ms > 0 else 0, dur)
+            info = {'take': k + 1, 'of': takes, 'dur': round(dur, 2), 'junk_ms': junk_ms, 'ok': ok}
+            if best is None or score < best[0]:
+                best = (score, a, info)
+            if ok and junk_ms == 0:
+                break  # a clean take: no need to try again
+    LAST.clear()
+    LAST.update(best[2])
+    print(f"voice '{t[:40]}' -> take {best[2]['take']}/{best[2]['of']}, {best[2]['dur']}s, junk cut {best[2]['junk_ms']} ms, ok={best[2]['ok']}", flush=True)
+    a = best[1]
     pcm = (np.clip(a, -1, 1) * 32767).astype('<i2')
     buf = io.BytesIO()
     with wave.open(buf, 'wb') as w:

@@ -20,7 +20,7 @@ if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo Free roam, fun loop planner, offline road packs, hazard calls, GPX export, game mode
+> "%TEMP%\navi-update-msg.txt" echo Map servers retry whole list twice with longer wait, third mirror, voice tail fix and home voice tools
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7
