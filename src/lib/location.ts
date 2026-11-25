@@ -86,3 +86,16 @@ export async function where(): Promise<LngLat> {
   if (a) return a.lngLat;
   return gpsOnce();
 }
+
+/** Straight-line distance in metres from a point to the nearest point on a route. Used to say "you are far from this road" before a drive starts. */
+export function distanceToRouteM(p: LngLat, coords: readonly LngLat[]): number {
+  const k = Math.cos((p[1] * Math.PI) / 180);
+  let best = Infinity;
+  for (const c of coords) {
+    const dx = (c[0] - p[0]) * 111320 * k;
+    const dy = (c[1] - p[1]) * 110540;
+    const d = dx * dx + dy * dy;
+    if (d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
