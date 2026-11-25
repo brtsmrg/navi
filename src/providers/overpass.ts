@@ -8,6 +8,7 @@ import type { Hazard } from '@/core/hazards';
  * fetched in small squares and kept, so a drive re-uses what it has already seen.
  */
 export const OVERPASS_MIRRORS = [
+  'https://overpass.openstreetmap.fr/api/interpreter',
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
@@ -15,6 +16,25 @@ export const OVERPASS_MIRRORS = [
 /** Whole list is tried this many times, with a short pause between rounds. The public servers are often overloaded. */
 const ROUNDS = 2;
 const ROUND_PAUSE_MS = 1500;
+/** A slow server must not hold the others up: after this long with no answer, the next server is asked too and the first answer wins. */
+export const HEDGE_MS = 2500;
+/** A server that just failed is asked last for this long. The one that answered last is asked first. */
+const COOLDOWN_MS = 5 * 60_000;
+const coolUntil = new Map<string, number>();
+let lastGood: string | undefined;
+
+export function resetMirrorHealth(): void {
+  coolUntil.clear();
+  lastGood = undefined;
+}
+
+function mirrorOrder(): string[] {
+  const now = Date.now();
+  const rank = (u: string) => (u === lastGood ? 0 : (coolUntil.get(u) ?? 0) > now ? 2 : 1);
+  return OVERPASS_MIRRORS.map((u, i) => ({ u, i }))
+    .sort((x, y) => rank(x.u) - rank(y.u) || x.i - y.i)
+    .map((x) => x.u);
+}
 
 /** Size of one map square in degrees (about 1.1 km north to south). */
 export const CELL_DEG = 0.01;
@@ -89,30 +109,81 @@ export function parseOverpass(json: unknown): RoadWay[] {
 const cache = new Map<string, RoadWay[]>();
 const inflight = new Map<string, Promise<RoadWay[]>>();
 
+/** An answer is only used when it is a real Overpass answer, not an error page or a half-finished query. */
+function checkAnswer(j: unknown): unknown {
+  const o = j as { elements?: unknown; remark?: unknown } | null;
+  if (!o || typeof o !== 'object' || !Array.isArray(o.elements)) throw new Error('Road data answer was not usable');
+  if (typeof o.remark === 'string' && /runtime error|timed out|out of memory/i.test(o.remark)) throw new Error('Road server was too busy');
+  return j;
+}
+
 async function fetchOne(url: string, query: string, signal: AbortSignal): Promise<unknown> {
   const res = await fetch(`${url}?data=${encodeURIComponent(query)}`, { signal, credentials: 'omit', referrerPolicy: 'strict-origin-when-cross-origin' });
   if (!res.ok) throw new Error(`Road data failed (${res.status})`);
-  return res.json();
+  return checkAnswer(await res.json());
 }
 
-/** Ask the public servers one question, trying each in turn. Nothing is kept. */
+/** One round: ask the servers best-first, the next one as soon as one fails or HEDGE_MS passes, and take the first good answer. */
+function oneRound(query: string, timeoutMs: number, outer?: AbortSignal): Promise<unknown> {
+  const order = mirrorOrder();
+  return new Promise((resolve, reject) => {
+    if (outer?.aborted) return reject(new Error('Road data request cancelled'));
+    const ctls: AbortController[] = [];
+    let launched = 0;
+    let failed = 0;
+    let done = false;
+    let lastErr: unknown;
+    let hedge: ReturnType<typeof setTimeout> | undefined;
+    const onOuter = () => finish(() => reject(new Error('Road data request cancelled')));
+    function finish(fn: () => void): void {
+      if (done) return;
+      done = true;
+      clearTimeout(hedge);
+      outer?.removeEventListener('abort', onOuter);
+      ctls.forEach((c) => c.abort());
+      fn();
+    }
+    outer?.addEventListener('abort', onOuter);
+    const launch = (): void => {
+      if (done || launched >= order.length) return;
+      const url = order[launched++];
+      const ctl = new AbortController();
+      ctls.push(ctl);
+      const timer = setTimeout(() => ctl.abort(), timeoutMs);
+      clearTimeout(hedge);
+      if (launched < order.length) hedge = setTimeout(launch, HEDGE_MS);
+      fetchOne(url, query, ctl.signal).then(
+        (json) => {
+          clearTimeout(timer);
+          lastGood = url;
+          coolUntil.delete(url);
+          finish(() => resolve(json));
+        },
+        (e) => {
+          clearTimeout(timer);
+          if (done) return;
+          lastErr = e;
+          coolUntil.set(url, Date.now() + COOLDOWN_MS);
+          if (lastGood === url) lastGood = undefined;
+          failed++;
+          if (launched < order.length) launch();
+          else if (failed >= order.length) finish(() => reject(lastErr instanceof Error ? lastErr : new Error('Road data is not reachable')));
+        },
+      );
+    };
+    launch();
+  });
+}
+
+/** Ask the public servers one question. Nothing is kept. */
 async function fetchJson(query: string, timeoutMs: number, outer?: AbortSignal): Promise<unknown> {
   let last: unknown;
   for (let round = 0; round < ROUNDS; round++) {
-    for (const url of OVERPASS_MIRRORS) {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), timeoutMs);
-      const onOuter = () => ctl.abort();
-      outer?.addEventListener('abort', onOuter);
-      try {
-        return await fetchOne(url, query, ctl.signal);
-      } catch (e) {
-        last = e;
-        if (outer?.aborted) throw last instanceof Error ? last : new Error('Road data request cancelled');
-      } finally {
-        clearTimeout(timer);
-        outer?.removeEventListener('abort', onOuter);
-      }
+    try {
+      return await oneRound(query, timeoutMs, outer);
+    } catch (e) {
+      last = e;
+      if (outer?.aborted) throw last instanceof Error ? last : new Error('Road data request cancelled');
     }
     if (round < ROUNDS - 1) await new Promise((r) => setTimeout(r, ROUND_PAUSE_MS));
   }
@@ -169,6 +240,7 @@ export function fetchTile(c: Cell, outer?: AbortSignal): Promise<RoadWay[]> {
 }
 
 export function clearRoadCache(): void {
+  resetMirrorHealth();
   cache.clear();
   hazardCache.clear();
 }
