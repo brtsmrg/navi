@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DENIED_MSG, LocationError, gpsOnce, helpSteps, platformOf, where } from './location';
+import { DENIED_MSG, LocationError, distanceToRouteM, gpsOnce, helpSteps, platformOf, where } from './location';
 import { useApp } from './store';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';
@@ -76,5 +76,15 @@ describe('where and gpsOnce', () => {
   it('a device with no location sensor says so', async () => {
     vi.stubGlobal('navigator', { userAgent: ANDROID });
     await expect(gpsOnce()).rejects.toMatchObject({ why: 'unsupported' });
+  });
+});
+
+describe('distance to a route', () => {
+  it('is small on the road and large far away', () => {
+    const road: [number, number][] = [[-75.62, 45.52], [-75.61, 45.52], [-75.6, 45.52]];
+    expect(distanceToRouteM([-75.61, 45.52], road)).toBeLessThan(1);
+    const km = distanceToRouteM([-75.99, 45.27], road) / 1000;
+    expect(km).toBeGreaterThan(30);
+    expect(km).toBeLessThan(45);
   });
 });
