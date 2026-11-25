@@ -119,7 +119,7 @@ export async function dropPin(at: [number, number]): Promise<void> {
 }
 
 /** A real, famous twisty road (US 129, "Tail of the Dragon") routed by the same router as any trip. Runs anywhere, no GPS needed. */
-export const SAMPLE_FROM: Place = { id: 'sample-a', title: 'Deals Gap, North Carolina', subtitle: 'Tail of the Dragon, south end', lngLat: [-83.9327, 35.4686] };
+export const SAMPLE_FROM: Place = { id: 'sample-a', title: 'Deals Gap, North Carolina', subtitle: 'Tail of the Dragon, south end', lngLat: [-83.9208, 35.4739] };
 export const SAMPLE_TO: Place = { id: 'sample-b', title: 'Tabcat Creek, North Carolina', subtitle: 'Tail of the Dragon, north end', lngLat: [-83.9935, 35.5207] };
 
 /** A calm 5 km test road with generous room between turns (no router, works offline). */
