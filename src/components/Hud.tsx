@@ -57,8 +57,8 @@ export function Hud() {
             </div>
           ) : (
             <div className="flex items-center justify-between">
-              <div className="font-display text-5xl font-bold">Arrive</div>
-              <div className="text-mute">{formatDistance(left, settings.units)} left</div>
+              <div className="font-display text-5xl font-bold">{kind === 'roam' ? 'Free roam' : 'Arrive'}</div>
+              <div className="text-mute">{kind === 'roam' ? 'Clear road ahead' : `${formatDistance(left, settings.units)} left`}</div>
             </div>
           )}
 

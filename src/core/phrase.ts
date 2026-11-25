@@ -1,4 +1,4 @@
-import type { DialectId, Note, Severity, UnitSystem } from './types';
+import type { DialectId, HazardKind, Note, Severity, UnitSystem } from './types';
 
 export interface PhraseOptions {
   dialect: DialectId;
@@ -45,10 +45,14 @@ export function noteText(n: Note, o: PhraseOptions): string {
   return n.extra && n.kind !== 'finish' ? `${base}, ${n.extra}` : base;
 }
 
+export const HAZARD_TEXT: Record<HazardKind, string> = { bump: 'Bump', rail: 'Rail crossing', camera: 'Speed camera', narrow: 'Narrows' };
+const HAZARD_SHORT: Record<HazardKind, string> = { bump: 'BUMP', rail: 'RAIL', camera: 'CAM', narrow: 'NAR' };
+
 function baseNoteText(n: Note, o: PhraseOptions): string {
   const plain = o.dialect === 'plain';
   const parts: string[] = [];
 
+  if (n.kind === 'hazard') return HAZARD_TEXT[n.hazard ?? 'bump'];
   if (n.kind === 'finish') return plain ? 'Arrive' : 'Finish';
   if (n.kind === 'roundabout') {
     const e = n.mods.exitCount ?? 1;
@@ -138,6 +142,7 @@ export function noteLabel(n: Note, o: PhraseOptions): { dir?: 'L' | 'R'; num: st
   if (n.kind === 'junction') return { dir: n.side, num: 'J', mods };
   if (n.kind === 'uturn') return { dir: n.side, num: 'U', mods };
   if (n.kind === 'merge') return { num: 'M', mods };
+  if (n.kind === 'hazard') return { num: HAZARD_SHORT[n.hazard ?? 'bump'], mods };
   return { dir: n.side, num: 'X', mods };
 }
 
@@ -163,6 +168,7 @@ export function fullLabel(n: Note): FullLabel {
     case 'finish': return out('Arrive');
     case 'roundabout': return out(`Roundabout, ${ordinal(n.mods.exitCount ?? 1)} exit`);
     case 'merge': return out('Merge');
+    case 'hazard': return out(HAZARD_TEXT[n.hazard ?? 'bump']);
     case 'uturn': return out(`U-turn${side ? ` ${side}` : ''}`);
     case 'exit': return out(side ? `Exit ${side}` : 'Exit');
     case 'junction': {

@@ -44,3 +44,6 @@ export function generateStage(route: Route, opts: Partial<StageOptions> = {}): S
   return { route, path, corners, notes, baseNotes: notes, key: routeKey(route.coords), stats: computeStats(path, corners, notes) };
 }
 export * from './traffic';
+export * from './roam';
+export * from './loop';
+export * from './hazards';

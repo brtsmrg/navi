@@ -56,8 +56,8 @@ export function StageHud() {
             <div className="mt-0.5 text-[11px] text-mute">total {tripUnit(settings.units)}</div>
           </div>
           <div className="rounded-2xl bg-panel px-2 py-1">
-            <div className="font-display text-xl font-semibold leading-none tabular-nums">{formatTrip(left, settings.units)}</div>
-            <div className="mt-0.5 text-[11px] text-mute">left {tripUnit(settings.units)}</div>
+            <div className="font-display text-xl font-semibold leading-none tabular-nums">{kind === 'roam' ? '–' : formatTrip(left, settings.units)}</div>
+            <div className="mt-0.5 text-[11px] text-mute">{kind === 'roam' ? 'roam' : `left ${tripUnit(settings.units)}`}</div>
           </div>
         </div>
       </div>
@@ -73,7 +73,7 @@ export function StageHud() {
           </div>
         </div>
       ) : (
-        <div className="rounded-3xl bg-panel p-6 font-display text-6xl font-bold">Finish</div>
+        <div className="rounded-3xl bg-panel p-6 font-display text-6xl font-bold">{kind === 'roam' ? 'Free roam' : 'Finish'}</div>
       )}
 
       <ol className="shrink-0 space-y-1.5" aria-label="Next calls">

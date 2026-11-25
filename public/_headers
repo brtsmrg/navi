@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tiles.openfreemap.org; font-src 'self' data: https://tiles.openfreemap.org; connect-src 'self' https://api.openai.com https://tiles.openfreemap.org https://valhalla1.openstreetmap.de https://photon.komoot.io https://huggingface.co https://*.hf.co https://*.trycloudflare.com; worker-src 'self' blob:; child-src blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tiles.openfreemap.org; font-src 'self' data: https://tiles.openfreemap.org; connect-src 'self' https://api.openai.com https://tiles.openfreemap.org https://valhalla1.openstreetmap.de https://photon.komoot.io https://overpass-api.de https://overpass.kumi.systems https://huggingface.co https://*.hf.co https://*.trycloudflare.com; worker-src 'self' blob:; child-src blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), camera=(), microphone=()
   X-Content-Type-Options: nosniff

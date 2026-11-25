@@ -21,7 +21,7 @@ MAX_CHARS = 400
 
 # how the voice is asked to sound: more "exaggeration" = more expressive; lower cfg = faster, less drawn out
 SETTINGS_FILE = HERE / 'voice-settings.json'
-DEFAULTS = {'exaggeration': 0.55, 'cfg_weight': 0.5, 'temperature': 0.7, 'pace': 1.0, 'bang': True, 'bright': 1.0, 'reference': 'reference.wav', 'style_version': 2}
+DEFAULTS = {'exaggeration': 0.7, 'cfg_weight': 0.5, 'temperature': 0.7, 'pace': 1.0, 'bang': True, 'bright': 1.4, 'comp': 0.8, 'air': 0.12, 'reference': 'reference-sharp.wav', 'style_version': 3}
 
 
 def settings() -> dict:
@@ -85,28 +85,63 @@ def _biquad(kind: str, f0: float, gain_db: float, q: float, sr: int):
     return np.array([b[0] / a[0], b[1] / a[0], b[2] / a[0], 1.0, a[1] / a[0], a[2] / a[0]])
 
 
-def sharpen(a: np.ndarray, sr: int, amount: float = 1.0) -> np.ndarray:
-    """Take the "far away / underwater" dullness out: cut rumble and mud, lift the consonants and air, tame the peaks."""
-    from scipy import signal
-
+def _compress(a: np.ndarray, sr: int, amount: float) -> np.ndarray:
+    """Gentle fast compressor: brings up the quiet consonants so words stay clear, like a broadcast voice chain."""
     if amount <= 0:
         return a
-    sos = [signal.butter(2, 75, 'highpass', fs=sr, output='sos')[0]]
-    sos.append(_biquad('peak', 320, -2.0 * amount, 0.8, sr))
-    sos.append(_biquad('peak', 3200, 4.0 * amount, 0.9, sr))
-    sos.append(_biquad('peak', 5600, 3.0 * amount, 1.0, sr))
-    sos.append(_biquad('shelf', 8000, 4.0 * amount, 0.7, sr))
-    out = signal.sosfilt(np.vstack(sos), a.astype(np.float64))
-    out = np.tanh(out * 1.6 / max(float(np.max(np.abs(out))), 1e-4)) / np.tanh(1.6)  # soft limiter, no hard clipping
+    thr = 10 ** (-26 / 20)
+    ratio = 1 + 3.0 * amount
+    att = np.exp(-1.0 / (0.001 * sr))
+    rel = np.exp(-1.0 / (0.080 * sr))
+    env = 0.0
+    g = np.empty_like(a)
+    x = np.abs(a)
+    for i in range(a.size):
+        v = x[i]
+        env = att * env + (1 - att) * v if v > env else rel * env + (1 - rel) * v
+        if env > thr:
+            g[i] = (env / thr) ** (1 / ratio - 1)
+        else:
+            g[i] = 1.0
+    return a * g
+
+
+def sharpen(a: np.ndarray, sr: int, amount: float = 1.0, comp: float = 0.0, air: float = 0.0) -> np.ndarray:
+    """Take the "far away / underwater" dullness out: cut rumble and mud, lift the consonants and air, even out the loudness."""
+    from scipy import signal
+
+    if amount <= 0 and comp <= 0 and air <= 0:
+        return a
+    x = a.astype(np.float64)
+    if amount > 0:
+        sos = [signal.butter(2, 75, 'highpass', fs=sr, output='sos')[0]]
+        sos.append(_biquad('peak', 320, -2.0 * amount, 0.8, sr))
+        sos.append(_biquad('peak', 3200, 4.0 * amount, 0.9, sr))
+        sos.append(_biquad('peak', 5600, 3.0 * amount, 1.0, sr))
+        sos.append(_biquad('shelf', 8000, 4.0 * amount, 0.7, sr))
+        x = signal.sosfilt(np.vstack(sos), x)
+    x = _compress(x, sr, comp)
+    if air > 0:  # add faint harmonics above 4 kHz that the voice model leaves out
+        hp = signal.butter(4, 4000, 'highpass', fs=sr, output='sos')
+        x = x + air * signal.sosfilt(hp, np.tanh(x * 4.0) / 4.0)
+    if comp > 0 or air > 0:  # loudness back up to a steady level, peaks caught by a look-ahead limiter (no clipping)
+        from scipy.ndimage import maximum_filter1d, uniform_filter1d
+
+        x = x * (0.16 / max(float(np.sqrt(np.mean(x ** 2))), 1e-6))
+        w = max(3, int(0.004 * sr))
+        pk = uniform_filter1d(maximum_filter1d(np.abs(x), w), w)
+        x = x * np.minimum(1.0, 0.9 / np.maximum(pk, 1e-9))
+        return x.astype(np.float32)
+    out = np.tanh(x * 1.6 / max(float(np.max(np.abs(x))), 1e-4)) / np.tanh(1.6)  # soft limiter, no hard clipping
     return out.astype(np.float32)
 
 
-def finish(a: np.ndarray, pace: float, bright: float = 1.0) -> np.ndarray:
+def finish(a: np.ndarray, pace: float, bright: float = 1.0, comp: float = 0.0, air: float = 0.0) -> np.ndarray:
     """Cut the silence off both ends, sharpen, even loudness, soft edges. (No time stretching: it made the voice sound underwater.)"""
     a = np.asarray(a, dtype=np.float32).reshape(-1)
     if a.size == 0:
         return a
-    a = sharpen(a, SR, bright)
+    a = sharpen(a, SR, bright, comp, air)
     peak = float(np.max(np.abs(a)))
     if peak < 1e-4:
         return a
@@ -141,7 +176,7 @@ def synth(text: str) -> bytes:
             with torch.inference_mode():
                 wav = _model.generate(t, **kw)
             a = wav.squeeze().detach().cpu().numpy()
-    a = finish(a, s['pace'], s['bright'])
+    a = finish(a, s['pace'], s['bright'], s['comp'], s['air'])
     pcm = (np.clip(a, -1, 1) * 32767).astype('<i2')
     buf = io.BytesIO()
     with wave.open(buf, 'wb') as w:

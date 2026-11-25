@@ -76,7 +76,11 @@ export type NoteKind =
   | 'merge'
   | 'exit'
   | 'uturn'
+  | 'hazard'
   | 'finish';
+
+/** Things on the road worth a word: from OpenStreetMap points. */
+export type HazardKind = 'bump' | 'rail' | 'camera' | 'narrow';
 
 export interface NoteMods {
   long?: boolean;
@@ -107,6 +111,8 @@ export interface Note {
   /** Normalised road sketch: flat [x0,y0,x1,y1,...] in 0..1, entry heading up. */
   glyph?: number[];
   limitKmh?: number;
+  /** What a hazard note is about. */
+  hazard?: HazardKind;
   /** Driver's own words, added to the call ('watch the gravel'). Set by pacenote edits. */
   extra?: string;
 }

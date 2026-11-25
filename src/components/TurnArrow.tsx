@@ -1,4 +1,4 @@
-import { CornerUpLeft, CornerUpRight, Flag, Merge, Navigation, RotateCw } from 'lucide-react';
+import { CornerUpLeft, CornerUpRight, Flag, Merge, Navigation, RotateCw, TriangleAlert } from 'lucide-react';
 import { fullLabel, type Note } from '@/core';
 import { cn, SEV_COLOR } from '@/lib/cn';
 
@@ -10,6 +10,7 @@ export function TurnArrow({ note, size = 88, word = true }: { note: Note; size?:
   if (note.kind === 'finish') Icon = Flag;
   else if (note.kind === 'roundabout') Icon = RotateCw;
   else if (note.kind === 'merge') Icon = Merge;
+  else if (note.kind === 'hazard') Icon = TriangleAlert;
   else if (dir === 'L') Icon = CornerUpLeft;
   else if (dir === 'R') Icon = CornerUpRight;
   const bg = (dir === 'L' || dir === 'R') && note.severity ? SEV_COLOR[note.severity] : undefined;

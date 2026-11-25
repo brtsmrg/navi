@@ -302,7 +302,7 @@ export function MapView() {
         zoom: Math.max(13.5, 17 - kmh / 45),
         duration: 400,
         easing: (t) => t,
-        padding: { top: Math.round(window.innerHeight * 0.6), bottom: 0, left: 0, right: 0 },
+        padding: { top: Math.round(window.innerHeight * (r.kind === 'game' ? 0.4 : 0.6)), bottom: 0, left: 0, right: 0 },
       });
     });
   }, []);

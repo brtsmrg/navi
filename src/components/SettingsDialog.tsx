@@ -299,6 +299,8 @@ export function SettingsDialog() {
         </Section>
 
         <Section title="Driving">
+          <Toggle label="Call hazards" checked={st.hazards} onChange={(hazards) => set({ hazards })} />
+          <p className="text-sm text-mute">Says “Bump”, “Rail crossing”, “Speed camera” and “Narrows” when the map has one on the road ahead. The map is not complete, so keep watching the road. Applies to the next route you open.</p>
           <Toggle label="Stage view" checked={st.stageView} onChange={(stageView) => set({ stageView })} />
           <p className="text-sm text-mute">Black screen like a rally computer: speed, heading, trip, total and distance left, the next call huge, the three after it listed, and a 5-4-3-2-1 count before you start. You can switch it on and off while driving.</p>
           <Segmented<DriverProfile> label="Driver profile" value={st.profile} onChange={(profile) => set({ profile, stageAttested: profile === 'stage' ? st.stageAttested : false })} options={PROFILES.map((p) => ({ value: p.value, label: p.label }))} />

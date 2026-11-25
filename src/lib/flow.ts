@@ -1,10 +1,11 @@
 import { generateStage, openTestStage } from '@/core';
-import { useApp } from '@/lib/store';
+import { useApp, useRideStore } from '@/lib/store';
 import { useLibrary, type Trip } from '@/lib/library';
 import { planWaypoints } from '@/lib/plan';
 import { reversePlace, type Place } from '@/providers/photon';
 import type { SharePayload } from '@/providers/share';
 import { useEdits } from '@/lib/edits';
+import { withHazards } from '@/lib/hazardCalls';
 
 export const HERE: Place = { id: 'here', title: 'My location', subtitle: '', lngLat: [0, 0] };
 
@@ -33,6 +34,10 @@ export async function planRoute(): Promise<void> {
   try {
     const stage = await planWaypoints([from.lngLat, ...via.map((v) => v.lngLat), to.lngLat], undefined, settings.avoid);
     st.setStage(stage);
+    // hazard calls arrive a moment later and never hold up the route
+    void withHazards(stage).then((hz) => {
+      if (hz !== stage && useApp.getState().stage?.key === stage.key && !useRideStore.getState().active) useApp.getState().setStage(hz);
+    });
     const id = useLibrary.getState().addTrip({ from, to, via, distanceM: stage.stats.distanceM, durationS: stage.route.duration, corners: stage.stats.cornerCount });
     st.setTripId(id);
   } catch (e) {

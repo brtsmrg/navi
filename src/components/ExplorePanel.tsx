@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Bookmark, Briefcase, ChevronDown, ChevronLeft, Clock, Coffee, Fuel, Home, MapPin, ParkingSquare, Pencil, Play, Plus, Share2, Star, Upload, UtensilsCrossed, Wand2, X, Zap } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Bookmark, Briefcase, ChevronDown, ChevronLeft, Clock, Coffee, Fuel, Gamepad2, Home, MapPin, ParkingSquare, Pencil, Play, Plus, Share2, Star, Upload, UtensilsCrossed, Wand2, X, Zap } from 'lucide-react';
 import { generateStage, type Stage } from '@/core';
 import { parseGpx } from '@/providers/gpx';
 import { buildShareUrl } from '@/providers/share';
@@ -8,7 +8,10 @@ import { chooseDestination, clearRoute, loadSampleRoad, loadOpenTestRoad, SAMPLE
 import { useLibrary } from '@/lib/library';
 import { useApp } from '@/lib/store';
 import { cn, SEV_COLOR } from '@/lib/cn';
-import { startRide } from '@/ride/controller';
+import { startGame, startRide, startRoam } from '@/ride/controller';
+import { here, planFunLoop } from '@/lib/funLoop';
+import { downloadText, safeFileName, stageToGpx } from '@/providers/gpxExport';
+import { clearPack, downloadPack, packInfo, type PackInfo } from '@/providers/roadPack';
 import { CATEGORIES, searchNearby, type Category, type NearbyPlace, type Place } from '@/providers/photon';
 import { NotesList } from './NotesList';
 import { SafetyGate } from './SafetyGate';
@@ -122,6 +125,125 @@ function Nearby() {
   );
 }
 
+function FunLoop() {
+  const units = useApp((s) => s.settings.units);
+  const [busy, setBusy] = useState<string>('');
+  const [err, setErr] = useState('');
+  const sizes = units === 'imperial' ? [10, 20, 30].map((n) => ({ label: `${n} mi`, m: n * 1609.344 })) : [15, 30, 45].map((n) => ({ label: `${n} km`, m: n * 1000 }));
+  const run = async (m: number) => {
+    setErr('');
+    setBusy('Finding where you are…');
+    try {
+      await planFunLoop(m, (p) => setBusy(`Reading the roads ${p.done}/${p.total}…`));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not build a loop.');
+    } finally {
+      setBusy('');
+    }
+  };
+  return (
+    <section>
+      <h2 className="mb-2 px-1 font-display text-xl font-semibold text-mute">Fun loop near me</h2>
+      <div className="grid grid-cols-3 gap-2">
+        {sizes.map((z) => (
+          <Button key={z.label} variant="raise" disabled={!!busy} onClick={() => void run(z.m)}>
+            {z.label}
+          </Button>
+        ))}
+      </div>
+      <p className="px-1 pt-2 text-sm text-mute">{busy || 'The twistiest round trip from where you are, with no road driven twice.'}</p>
+      {err && <p role="alert" className="mt-2 rounded-xl bg-sev1/15 p-3 text-sm text-sev2">{err}</p>}
+    </section>
+  );
+}
+
+function GameMode() {
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const here2 = async () => {
+    setErr('');
+    setBusy(true);
+    try {
+      startGame(await here());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not start the game.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section>
+      <h2 className="mb-2 px-1 font-display text-xl font-semibold text-mute">Game mode</h2>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="raise" disabled={busy} onClick={() => void here2()}>
+          <Gamepad2 size={18} /> Play near me
+        </Button>
+        <Button variant="raise" onClick={() => startGame(SAMPLE_FROM.lngLat)}>
+          <Gamepad2 size={18} /> Tail of the Dragon
+        </Button>
+      </div>
+      <p className="px-1 pt-2 text-sm text-mute">Drive a virtual car on real roads with a controller, keyboard or touch buttons. The co-driver calls the corners and you score for taking them well. Only for when you are parked. Uses no GPS.</p>
+      {err && <p role="alert" className="mt-2 rounded-xl bg-sev1/15 p-3 text-sm text-sev2">{err}</p>}
+    </section>
+  );
+}
+
+function OfflineRoads() {
+  const units = useApp((s) => s.settings.units);
+  const [info, setInfo] = useState<PackInfo | null>(null);
+  const [status, setStatus] = useState('');
+  const [err, setErr] = useState('');
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    void packInfo().then(setInfo);
+  }, []);
+  const radii = units === 'imperial' ? [10, 20].map((n) => ({ label: `${n} mi`, m: n * 1609.344 })) : [15, 30].map((n) => ({ label: `${n} km`, m: n * 1000 }));
+  const save = async (m: number) => {
+    setErr('');
+    setStatus('Finding where you are…');
+    const ctl = (abort.current = new AbortController());
+    try {
+      const at = await here();
+      const r = await downloadPack(at, m, (p) => setStatus(`Saving roads ${p.done}/${p.total}${p.failed ? ` (${p.failed} to retry)` : ''}…`), ctl.signal);
+      if (r.failed) setErr(`${r.failed} map piece${r.failed === 1 ? '' : 's'} did not download. Tap the same size again to fill the gaps.`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save the roads.');
+    } finally {
+      abort.current = null;
+      setStatus('');
+      setInfo(await packInfo());
+    }
+  };
+  const mb = info ? Math.max(0.1, info.bytes / 1048576).toFixed(info.bytes > 10485760 ? 0 : 1) : '0';
+  return (
+    <section>
+      <h2 className="mb-2 px-1 font-display text-xl font-semibold text-mute">Roads without signal</h2>
+      <div className="grid grid-cols-2 gap-2">
+        {radii.map((z) => (
+          <Button key={z.label} variant="raise" disabled={!!status} onClick={() => void save(z.m)}>
+            Save {z.label} around me
+          </Button>
+        ))}
+      </div>
+      {status && (
+        <div className="mt-2 flex items-center gap-2 px-1 text-sm text-mute">
+          <span className="flex-1">{status}</span>
+          <button className="min-h-11 px-2 text-ink" onClick={() => abort.current?.abort()}>Stop</button>
+        </div>
+      )}
+      <p className="px-1 pt-2 text-sm text-mute">
+        {info && info.tiles > 0 ? `${info.tiles} map pieces saved on this phone (${mb} MB). Free roam and Fun loop use them with no signal.` : 'Save the roads near you once on Wi-Fi. Free roam and Fun loop then work with no signal. Stays on this phone.'}
+      </p>
+      {info && info.tiles > 0 && !status && (
+        <button className="min-h-11 px-1 text-sm text-mute underline" onClick={() => void clearPack().then(() => packInfo().then(setInfo))}>
+          Delete saved roads
+        </button>
+      )}
+      {err && <p role="alert" className="mt-2 rounded-xl bg-sev1/15 p-3 text-sm text-sev2">{err}</p>}
+    </section>
+  );
+}
+
 function HomeView() {
   const { home, work, favs, recents } = useLibrary();
   const setTab = useApp((s) => s.setTab);
@@ -129,6 +251,10 @@ function HomeView() {
   const plan = useApp((s) => s.plan);
   const setPlan = useApp((s) => s.setPlan);
   const file = useRef<HTMLInputElement>(null);
+  const settings = useApp((s) => s.settings);
+  const setSetting = useApp((s) => s.set);
+  const [gate, setGate] = useState<null | (() => void)>(null);
+  const guarded = (go: () => void) => (settings.safetyAccepted ? go() : setGate(() => go));
 
   const onGpx = async (f: File | undefined) => {
     if (!f) return;
@@ -178,6 +304,20 @@ function HomeView() {
       {plan.err && <p role="alert" className="rounded-xl bg-sev1/15 p-3 text-sm text-sev2">{plan.err}</p>}
 
       <section>
+        <h2 className="mb-2 px-1 font-display text-xl font-semibold text-mute">Just drive</h2>
+        <Button variant="primary" className="w-full bg-go text-dark hover:bg-go/90" onClick={() => guarded(startRoam)}>
+          <Play size={18} fill="currentColor" /> Free roam
+        </Button>
+        <p className="px-1 pt-2 text-sm text-mute">No destination. Navi reads the road you are on and calls the corners ahead, staying on the same road at junctions.</p>
+      </section>
+
+      <FunLoop />
+
+      <OfflineRoads />
+
+      <GameMode />
+
+      <section>
         <h2 className="mb-2 px-1 font-display text-xl font-semibold text-mute">No destination yet?</h2>
         <div className="grid grid-cols-2 gap-2">
           <Button variant="raise" onClick={() => void loadSampleRoad()}>
@@ -193,6 +333,15 @@ function HomeView() {
         </div>
       </section>
       <p className="pb-2 text-center text-xs text-mute">Navi build {__BUILD__}</p>
+      <SafetyGate
+        open={gate !== null}
+        onAccept={() => {
+          setSetting({ safetyAccepted: true });
+          const g = gate;
+          setGate(null);
+          g?.();
+        }}
+      />
     </div>
   );
 }
@@ -361,6 +510,16 @@ function RouteView() {
           )}
           <Button variant="raise" className="w-full" onClick={() => go('demo')}>
             Watch a demo drive (no GPS)
+          </Button>
+          <Button
+            variant="raise"
+            className="w-full"
+            onClick={() => {
+              const title = to?.title ?? stage.route.name ?? 'Navi route';
+              downloadText(safeFileName(title), stageToGpx(stage, { dialect: settings.dialect, units: settings.units }, title));
+            }}
+          >
+            <Upload size={18} className="rotate-180" /> Save as a GPX file
           </Button>
         </>
       )}

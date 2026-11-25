@@ -45,6 +45,8 @@ export interface Settings {
   theme: Theme;
   /** Big three-note display for racing and closed courses. */
   stageView: boolean;
+  /** Call bumps, rail crossings, speed cameras and narrow points on the road ahead. */
+  hazards: boolean;
   /** Traffic outline around the route on the map screen. Never shown in stage view. */
   traffic: boolean;
   /** What marks you on the map. */
@@ -76,6 +78,7 @@ export const DEFAULTS: Settings = {
   safetyAccepted: false,
   stageAttested: false,
   stageView: false,
+  hazards: true,
   traffic: false,
   vehicle: 'dot',
   trafficSource: 'sample',
@@ -180,7 +183,7 @@ export const useApp = create<AppState>((set, get) => ({
 /* ---- live ride state (updated several times a second) ---- */
 export interface RideState {
   active: boolean;
-  kind: 'gps' | 'demo';
+  kind: 'gps' | 'demo' | 'roam' | 'game';
   s: number;
   v: number; // m/s
   lngLat: LngLat | null;

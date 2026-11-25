@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { GameHud } from '@/components/GameHud';
 import { Hud } from '@/components/Hud';
 import { MapView } from '@/components/MapView';
 import { Shell } from '@/components/Shell';
@@ -10,6 +11,7 @@ import { parseShareHash } from '@/providers/share';
 
 export default function App() {
   const active = useRideStore((s) => s.active);
+  const kind = useRideStore((s) => s.kind);
   const theme = useApp((s) => s.settings.theme);
 
   // light, dark, or follow the phone
@@ -41,7 +43,7 @@ export default function App() {
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapView />
-      {active ? <Hud /> : <Shell />}
+      {active ? kind === 'game' ? <GameHud /> : <Hud /> : <Shell />}
       <SettingsDialog />
       <Splash />
     </div>
