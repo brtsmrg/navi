@@ -7,6 +7,7 @@ import { useEdits } from '@/lib/edits';
 import { chooseDestination, clearRoute, loadSampleRoad, loadOpenTestRoad, SAMPLE_FROM, fmtArrival, fmtDistance, fmtDuration, locateHere, planRoute } from '@/lib/flow';
 import { useLibrary } from '@/lib/library';
 import { useApp } from '@/lib/store';
+import { distanceToRouteM, gpsOnce } from '@/lib/location';
 import { cn, SEV_COLOR } from '@/lib/cn';
 import { startGame, startRide, startRoam } from '@/ride/controller';
 import { here, planFunLoop } from '@/lib/funLoop';
@@ -430,17 +431,37 @@ function RouteView() {
   const notice = useApp((s) => s.notice);
   const setNotice = useApp((s) => s.setNotice);
   const [notes, setNotes] = useState(false);
+  const [far, setFar] = useState('');
   if (!stage) return null;
 
   const trip = trips.find((t) => t.id === tripId);
-  const isDemoRoad = from?.id === SAMPLE_FROM.id;
+  const isTestRoad = stage.route.name === 'Open test road';
+  const isDemoRoad = from?.id === SAMPLE_FROM.id || isTestRoad;
   const isFav = to ? favs.some((f) => f.place.id === to.id || (Math.abs(f.place.lngLat[0] - to.lngLat[0]) < 1e-4 && Math.abs(f.place.lngLat[1] - to.lngLat[1]) < 1e-4)) : false;
   const guarded = (go: () => void) => (settings.safetyAccepted ? go() : setGate(() => go));
+  const begin = (kind: 'gps' | 'demo') => {
+    if (tripId) markStarted(tripId);
+    const countdownSec = settings.stageView ? 5 : 0;
+    startRide(stage, kind === 'gps' ? { kind: 'gps', countdownSec } : { kind: 'demo', cruiseKmh: 90, warp: 1, countdownSec });
+  };
   const go = (kind: 'gps' | 'demo') =>
     guarded(() => {
-      if (tripId) markStarted(tripId);
-      const countdownSec = settings.stageView ? 5 : 0;
-      startRide(stage, kind === 'gps' ? { kind: 'gps', countdownSec } : { kind: 'demo', cruiseKmh: 90, warp: 1, countdownSec });
+      setFar('');
+      if (kind === 'demo') return begin('demo');
+      // GPS cannot follow a road that is far from the phone: say so before starting, not after.
+      void (async () => {
+        try {
+          const me = await gpsOnce({ enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 });
+          const km = distanceToRouteM(me, stage.route.coords) / 1000;
+          if (km > 5) {
+            setFar(`You are about ${Math.round(km)} km from this road, so GPS has nothing to follow. Tap Watch a demo drive, or search for a road near you.`);
+            return;
+          }
+        } catch {
+          /* a location problem is explained by the drive itself */
+        }
+        begin('gps');
+      })();
     });
 
   const share = async () => {
@@ -501,10 +522,11 @@ function RouteView() {
           <Button variant="primary" className="w-full bg-go text-dark hover:bg-go/90" onClick={() => go('demo')}>
             <Play size={18} fill="currentColor" /> Watch the demo drive
           </Button>
-          <p className="px-1 text-sm text-mute">This is a real road far from you (the Tail of the Dragon, USA), so GPS has nothing to follow. The demo drives it for you and calls every corner.</p>
+          <p className="px-1 text-sm text-mute">{isTestRoad ? 'This is a made-up test road, so GPS has nothing to follow. The demo drives it for you and calls every corner.' : 'This is a real road far from you (the Tail of the Dragon, USA), so GPS has nothing to follow. The demo drives it for you and calls every corner.'}</p>
         </>
       ) : (
         <>
+          {far && <p role="alert" className="rounded-xl bg-sev1/15 p-3 text-sm text-sev2">{far}</p>}
           <div className="grid grid-cols-[1fr_auto_auto] gap-2">
             <Button variant="primary" className="bg-go text-dark hover:bg-go/90" onClick={() => go('gps')}>
               <Play size={18} fill="currentColor" /> Start with GPS
