@@ -551,7 +551,7 @@ function gameTick(): void {
     return;
   }
   if (!g.started) {
-    const near = nearestRoadPoint(r.graph, g.pos, 500);
+    const near = nearestRoadPoint(r.graph, g.pos, 1200);
     if (!near) {
       useRideStore.setState({ gpsError: 'No road near this spot. Try a place with roads around it.' });
       return;
