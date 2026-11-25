@@ -7,6 +7,7 @@ import { readInput, rumble, resetInput } from './gameInput';
 import { listVoices, primeSpeech, say, stopSpeaking, speechSupported } from '@/lib/speech';
 import { cue, releaseAudio, unlockAudio } from '@/lib/audio';
 import { keepAwake } from '@/lib/wakeLock';
+import { DENIED_MSG } from '@/lib/location';
 import { warmClips } from '@/lib/clips';
 
 /**
@@ -186,6 +187,7 @@ export function startRide(stage: Stage, o: RideOptions): void {
     let offSince = 0;
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
+        if (useApp.getState().locationBlocked) useApp.getState().setLocationBlocked(false);
         const { longitude: lng, latitude: lat, speed, heading } = pos.coords;
         const t = pos.timestamp;
         let v = speed ?? NaN;
@@ -213,13 +215,23 @@ export function startRide(stage: Stage, o: RideOptions): void {
         });
         handle(snap.s, vSmooth, t);
       },
-      (err) => useRideStore.setState({ gpsError: err.code === 1 ? 'Location is blocked. Allow it in your browser settings.' : 'Waiting for a GPS fix…' }),
+      (err) => onWatchError(err.code),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
   };
   const cd = o.countdownSec ?? 0;
   if (cd > 0) runCountdown(cd, begin);
   else begin();
+}
+
+/** The phone refused or lost location while watching: say so plainly, and show the help card on a refusal. */
+function onWatchError(code: number): void {
+  if (code === 1) {
+    useApp.getState().setLocationBlocked(true);
+    useRideStore.setState({ gpsError: DENIED_MSG });
+  } else {
+    useRideStore.setState({ gpsError: 'Waiting for a GPS fix…' });
+  }
 }
 
 let finishing = false;
@@ -472,8 +484,11 @@ export function startRoam(): void {
     return;
   }
   watchId = navigator.geolocation.watchPosition(
-    (pos) => roamFix({ lng: pos.coords.longitude, lat: pos.coords.latitude, t: pos.timestamp, speed: pos.coords.speed ?? undefined, heading: pos.coords.heading ?? undefined }),
-    (err) => useRideStore.setState({ gpsError: err.code === 1 ? 'Location is blocked. Allow it in your browser settings.' : 'Waiting for a GPS fix…' }),
+    (pos) => {
+      if (useApp.getState().locationBlocked) useApp.getState().setLocationBlocked(false);
+      roamFix({ lng: pos.coords.longitude, lat: pos.coords.latitude, t: pos.timestamp, speed: pos.coords.speed ?? undefined, heading: pos.coords.heading ?? undefined });
+    },
+    (err) => onWatchError(err.code),
     { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
   );
 }

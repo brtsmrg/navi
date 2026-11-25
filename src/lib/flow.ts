@@ -6,23 +6,17 @@ import { reversePlace, type Place } from '@/providers/photon';
 import type { SharePayload } from '@/providers/share';
 import { useEdits } from '@/lib/edits';
 import { withHazards } from '@/lib/hazardCalls';
+import { gpsOnce } from '@/lib/location';
 
 export const HERE: Place = { id: 'here', title: 'My location', subtitle: '', lngLat: [0, 0] };
 
-/** One GPS fix as a Place. Rejects with a message the driver can act on. */
-export function locateHere(): Promise<Place> {
-  return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) return reject(new Error('This device has no location sensor. Search for a start point instead.'));
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        const pos: [number, number] = [p.coords.longitude, p.coords.latitude];
-        useApp.getState().setUserPos(pos);
-        resolve({ id: 'here', title: 'My location', subtitle: '', lngLat: pos });
-      },
-      (e) => reject(new Error(e.code === 1 ? 'Location is blocked. Allow it in your browser settings, or search for a start point.' : 'Could not get a GPS fix. Search for a start point instead.')),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 },
-    );
-  });
+/** The start as a Place: the one the driver picked, or one GPS fix. Rejects with a message the driver can act on. */
+export async function locateHere(): Promise<Place> {
+  const anchor = useApp.getState().anchor;
+  if (anchor) return anchor;
+  const pos = await gpsOnce({ enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 });
+  useApp.getState().setUserPos(pos);
+  return { id: 'here', title: 'My location', subtitle: '', lngLat: pos };
 }
 
 /** Route from/via/to with the driver's route options, keep it in History, and show it. */

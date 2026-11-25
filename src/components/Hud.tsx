@@ -10,13 +10,15 @@ import { StageHud } from './StageHud';
 import { Glyph } from './Glyph';
 import { TurnArrow } from './TurnArrow';
 import { Button } from './ui';
+import { LocationHelp } from './LocationHelp';
 
 export function Hud() {
   const stage = useApp((s) => s.stage);
   const settings = useApp((s) => s.settings);
   const set = useApp((s) => s.set);
   const setSettingsOpen = useApp((s) => s.setSettingsOpen);
-  const { s, v, lastCall, offRoute, gpsError, kind, audioNote, countdown } = useRideStore();
+  const { s, v, lastCall, offRoute, gpsError, kind, audioNote, countdown, lngLat } = useRideStore();
+  const locationBlocked = useApp((st) => st.locationBlocked);
 
   const upcoming = useMemo(() => {
     if (!stage) return [] as Note[];
@@ -42,7 +44,7 @@ export function Hud() {
       {!stageView && cueSide && <div aria-hidden style={{ ['--cue' as string]: SEV_COLOR[next?.severity ?? 4] }} className={cn('edge-cue', cueSide === 'L' ? 'l' : 'r')} />}
       {!stageView && (
       <div className="safe-t pointer-events-none absolute inset-x-0 top-0 z-10 px-3">
-        <div className={cn('pointer-events-auto rounded-3xl bg-panel/95 p-4 shadow-2xl backdrop-blur', alert && 'ring-4 ring-sev1')}>
+        <div className={cn('pointer-events-auto max-h-[78dvh] overflow-y-auto rounded-3xl bg-panel/95 p-4 shadow-2xl backdrop-blur', alert && 'ring-4 ring-sev1')}>
           {next ? (
             <div className="flex items-center gap-3">
               {words ? (
@@ -65,7 +67,7 @@ export function Hud() {
           ) : (
             <div className="flex items-center justify-between">
               <div className="font-display text-5xl font-bold">{kind === 'roam' ? 'Free roam' : 'Arrive'}</div>
-              <div className="text-mute">{kind === 'roam' ? 'Clear road ahead' : `${formatDistance(left, settings.units)} left`}</div>
+              <div className="text-mute">{kind === 'roam' ? (lngLat ? 'Clear road ahead' : 'Waiting for your location') : `${formatDistance(left, settings.units)} left`}</div>
             </div>
           )}
 
@@ -98,7 +100,8 @@ export function Hud() {
           </button>
           <Corrections className="mt-3" />
           {offRoute && <p className="mt-2 text-sm font-medium text-sev2">Off the planned route. Notes resume when you rejoin it.</p>}
-          {gpsError && <p className="mt-2 text-sm text-sev3">{gpsError}</p>}
+          {gpsError && !locationBlocked && <p role="status" className="mt-2 text-sm text-sev3">{gpsError}</p>}
+          {locationBlocked && <LocationHelp compact />}
         </div>
 
         <div className="pointer-events-auto mt-2 flex gap-2">

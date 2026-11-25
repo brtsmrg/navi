@@ -17,6 +17,7 @@
   --color-mute: #98a0ab;
   --color-dark: #07080a; /* fixed dark for text on bright tiles, in every theme */
   --color-brand: #e41626;
+  --color-brand-text: #ff5a66; /* brand red lightened for text on dark panels (WCAG AA 4.5:1) */
   --color-dirl: #56d7e0;
   --color-dirr: #ffb54a;
   --color-go: #7fd6a1;
@@ -39,6 +40,7 @@ html[data-theme='light'] {
   --color-mute: #566170;
   --color-dirl: #0a7c88;
   --color-go: #58c98a;
+  --color-brand-text: #c4101e;
 }
 .theme-dark {
   color-scheme: dark;
@@ -50,6 +52,7 @@ html[data-theme='light'] {
   --color-mute: #98a0ab;
   --color-dirl: #56d7e0;
   --color-go: #7fd6a1;
+  --color-brand-text: #ff5a66;
   color: var(--color-ink);
 }
 

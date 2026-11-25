@@ -66,7 +66,7 @@ export function Shell() {
       </div>
       <nav aria-label="Main" className="safe-b grid shrink-0 grid-cols-4 gap-1 border-t border-line px-2 pt-1">
         {TABS.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined} className={cn('flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-xs', tab === id ? 'text-brand' : 'text-mute hover:text-ink')}>
+          <button key={id} onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined} className={cn('flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-xs', tab === id ? 'text-brand-text' : 'text-mute hover:text-ink')}>
             <Icon size={22} />
             {label}
           </button>

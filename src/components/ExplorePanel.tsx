@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Briefcase, ChevronDown, ChevronLeft, Clock, Coffee, Fuel, Gamepad2, Home, MapPin, ParkingSquare, Pencil, Play, Plus, Share2, Star, Upload, UtensilsCrossed, Wand2, X, Zap } from 'lucide-react';
+import { BoxSelect, Bookmark, Briefcase, ChevronDown, ChevronLeft, Clock, Coffee, Fuel, Gamepad2, Home, MapPin, ParkingSquare, Pencil, Play, Plus, Share2, Star, Upload, UtensilsCrossed, Wand2, X, Zap } from 'lucide-react';
 import { generateStage, type Stage } from '@/core';
 import { parseGpx } from '@/providers/gpx';
 import { buildShareUrl } from '@/providers/share';
@@ -18,6 +18,9 @@ import { SafetyGate } from './SafetyGate';
 import { PlaceRow, SearchBox } from './SearchBox';
 import { PrepareVoice } from './PrepareVoice';
 import { Button } from './ui';
+import { AreaPicker } from './AreaPicker';
+import { LocationHelp } from './LocationHelp';
+import { StartFrom } from './StartFrom';
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -193,6 +196,7 @@ function OfflineRoads() {
   const [info, setInfo] = useState<PackInfo | null>(null);
   const [status, setStatus] = useState('');
   const [err, setErr] = useState('');
+  const [picking, setPicking] = useState(false);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => {
     void packInfo().then(setInfo);
@@ -225,6 +229,17 @@ function OfflineRoads() {
           </Button>
         ))}
       </div>
+      <Button variant="raise" className="mt-2 w-full" disabled={!!status} onClick={() => setPicking(true)}>
+        <BoxSelect size={18} /> Draw an area to save (up to 150 km)
+      </Button>
+      {picking && (
+        <AreaPicker
+          onClose={() => {
+            setPicking(false);
+            void packInfo().then(setInfo);
+          }}
+        />
+      )}
       {status && (
         <div className="mt-2 flex items-center gap-2 px-1 text-sm text-mute">
           <span className="flex-1">{status}</span>
@@ -288,6 +303,9 @@ function HomeView() {
           </button>
         ))}
       </div>
+
+      <LocationHelp />
+      <StartFrom />
 
       {recents.length > 0 && (
         <section>

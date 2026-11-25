@@ -1,26 +1,17 @@
 import { buildGraph, buildLoop, generateStage, type RoadWay } from '@/core';
-import type { LngLat } from '@/core/types';
 import { cellsAround, fetchCell, fetchTile, tilesAround, TILE_DEG } from '@/providers/overpass';
 import { getPackTile, tileOfPoint } from '@/providers/roadPack';
 import { withHazards } from './hazardCalls';
 import { useApp } from './store';
+import { where } from './location';
 
 export interface LoopProgress {
   done: number;
   total: number;
 }
 
-/** Where the phone is right now, once. */
-export function here(): Promise<LngLat> {
-  return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) return reject(new Error('This device has no location sensor.'));
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve([p.coords.longitude, p.coords.latitude]),
-      (e) => reject(new Error(e.code === 1 ? 'Location is blocked. Allow it in your browser settings, then try again.' : 'Could not find where you are. Check the GPS signal and try again.')),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 },
-    );
-  });
-}
+/** The start point: the place the driver picked, otherwise where the phone is, once. */
+export const here = where;
 
 /** Run at most `n` jobs at a time; a failed job does not stop the rest. */
 async function pool<T>(jobs: (() => Promise<T>)[], n: number, onEach: (ok: boolean) => void): Promise<T[]> {

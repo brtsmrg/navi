@@ -126,6 +126,12 @@ interface AppState {
   setTo: (p: Place | null) => void;
   userPos: LngLat | null;
   setUserPos: (p: LngLat | null) => void;
+  /** A start point the driver picked by hand. Used instead of GPS for planning (never for Free roam). Kept on this phone only while the app is open. */
+  anchor: Place | null;
+  setAnchor: (p: Place | null) => void;
+  /** True after the phone refused location, until a fix works. Shows the "how to turn it on" card. */
+  locationBlocked: boolean;
+  setLocationBlocked: (b: boolean) => void;
   screen: Screen;
   setScreen: (s: Screen) => void;
   settingsOpen: boolean;
@@ -164,6 +170,10 @@ export const useApp = create<AppState>((set, get) => ({
   setTo: (to) => set({ to }),
   userPos: null,
   setUserPos: (userPos) => set({ userPos }),
+  anchor: null,
+  setAnchor: (anchor) => set({ anchor }),
+  locationBlocked: false,
+  setLocationBlocked: (locationBlocked) => set({ locationBlocked }),
   screen: 'plan',
   setScreen: (screen) => set({ screen }),
   settingsOpen: false,

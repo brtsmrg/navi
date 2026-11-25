@@ -173,8 +173,12 @@ export interface PackProgress {
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Download every tile around a point that is not saved yet. Resumable: tiles already saved are skipped. */
-export async function downloadPack(center: LngLat, radiusM: number, onProgress: (p: PackProgress) => void, signal?: AbortSignal): Promise<PackProgress> {
-  const tiles = packTiles(center, radiusM);
+export function downloadPack(center: LngLat, radiusM: number, onProgress: (p: PackProgress) => void, signal?: AbortSignal): Promise<PackProgress> {
+  return downloadTiles(packTiles(center, radiusM), onProgress, signal);
+}
+
+/** Download the given tiles that are not saved yet. Resumable: tiles already saved are skipped. */
+export async function downloadTiles(tiles: Cell[], onProgress: (p: PackProgress) => void, signal?: AbortSignal): Promise<PackProgress> {
   const p: PackProgress = { done: 0, total: tiles.length, failed: 0 };
   onProgress({ ...p });
   let next = 0;

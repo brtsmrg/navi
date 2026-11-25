@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navi: what it needs to be correct, legal and good</title>
+<style>
+:root{--paper:#EDF1EE;--card:#F8FAF8;--ink:#16262B;--soft:#4D6168;--line:#B9C5C0;--road:#2B3A40;--teal:#0E7C7B;--amber:#E8A200;--red:#C8402B;--green:#2F8F4E;--sky:#DCE9EA}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 "Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif}
+main{max-width:720px;margin:0 auto;padding:0 16px 64px}
+h1,h2,h3{font-family:"Franklin Gothic Medium","Arial Narrow","Segoe UI",sans-serif;line-height:1.15;margin:0}
+h1{font-size:34px;letter-spacing:-.5px}h2{font-size:25px;margin:46px 0 6px}h3{font-size:18px;margin:18px 0 4px}
+p{margin:8px 0}.lede{font-size:18px}.small{font-size:14px;color:var(--soft)}
+header{padding:28px 0 8px}
+.tag{display:inline-block;font-size:13px;background:var(--road);color:#fff;padding:2px 10px;border-radius:999px}
+figure{margin:14px 0 6px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:14px;color:var(--soft);padding:6px 4px 2px}
+svg text{font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;fill:var(--ink)}
+.t{font-size:12.5px}.tb{font-size:12.5px;font-weight:700}.ts{font-size:11px;fill:#4D6168}.th{font-size:14.5px;font-weight:700}.w{fill:#fff!important}
+.badge{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;color:#fff;white-space:nowrap}
+.ok{background:var(--green)}.part{background:#B77C00}.miss{background:var(--red)}.na{background:#6A5A8A}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:10px 0;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);min-width:560px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--sky);font-weight:700}tr:last-child td{border-bottom:0}
+td.c{text-align:center;white-space:nowrap}
+.callout{background:#FFF4D6;border:1px solid #E7C873;border-radius:12px;padding:10px 14px;margin:14px 0}
+.callout.red{background:#FBE4DF;border-color:#E3A99D}.callout.green{background:#E1F1E5;border-color:#9FCBAB}
+.stage{background:var(--card);border:1px solid var(--line);border-left:8px solid var(--teal);border-radius:12px;padding:12px 14px;margin:12px 0}
+.stage.s0{border-left-color:var(--green)}.stage.s1{border-left-color:var(--amber)}.stage.s2{border-left-color:var(--teal)}.stage.s3{border-left-color:var(--road)}
+.stage ul{margin:6px 0 0;padding-left:20px}.stage li{margin:3px 0}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tile b{display:block;font-size:24px;font-family:"Franklin Gothic Medium","Arial Narrow",sans-serif}
+code{background:#E2E9E6;padding:1px 5px;border-radius:4px;font-size:13px}
+a{color:var(--teal)}
+footer{margin-top:40px;font-size:13.5px;color:var(--soft)}
+@media (min-width:560px){h1{font-size:42px}.tiles{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <span class="tag">25 Nov 2026 &middot; draft for the owner, not legal advice</span>
+  <h1 style="margin-top:10px">Navi: what it needs to be correct, legal and good</h1>
+  <p class="lede">Navi is clean on the things that get most vibe-coded apps in trouble: no keys in the app, no ads, no tracking, no accounts, no known security holes. What is missing is the paper: no privacy policy, no terms, no credits screen, no contact address. Those block both app stores. This page lists every gap with its source, compares Navi with the map apps people already use, and gives the order to fix things.</p>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>0</b>known security holes in the shipped code (<code>npm audit</code>)</div>
+  <div class="tile"><b>0</b>trackers, ads, accounts or analytics calls</div>
+  <div class="tile"><b>0</b>accessibility failures on 3 screens (axe, after one fix)</div>
+  <div class="tile"><b>8</b>things the stores or the law require that Navi lacks</div>
+</div>
+
+<h2>1. What changed in the app today</h2>
+<p>Your phone report: every option said location was blocked, Free roam was a black screen, Fun loop and Near me did nothing, and the saved-roads buttons failed. The cause was one thing seen five ways. When the phone refuses location, each feature failed on its own with a tiny message and no way forward.</p>
+<div class="stage s0">
+<b>Fixed in the code, tested on a phone-sized screen</b>
+<ul>
+<li><b>Location help card.</b> It appears the moment the phone says no, on the home screen and in Free roam. On iPhone it gives the four Settings steps (Privacy &amp; Security, Location Services, Safari Websites, aA &gt; Website Settings), with a Try again button. Android and desktop have their own steps.</li>
+<li><b>Start point without GPS.</b> Search a place under "Start point". Fun loop, Near me, Game mode and saved roads then start from there. Free roam still needs live location, and says so.</li>
+<li><b>Draw an area to save.</b> A full-screen map. Pick circle or square, touch the middle, drag outward. It shows pieces, a rough size in MB and minutes before you save, and stops at <b>150 km across</b>. Over 300 pieces it asks a second time and warns about load on the public servers.</li>
+<li><b>Free roam screen.</b> It now says "Waiting for your location" instead of "Clear road ahead", and the card scrolls so the Stop button is never pushed off.</li>
+<li><b>Contrast.</b> The red active tab and the "Change" link failed the 4.5 to 1 text rule. Fixed with a lighter red for text.</li>
+<li><b>Honest wording.</b> My first draft of the help card said location "stays on this phone". That is not true (see section 2), so it now says what is sent.</li>
+</ul></div>
+<p class="small">Checks run: types, lint, 173 tests (19 of them new), production build; Playwright with location denied and granted; axe on home, help card and picker. Not possible here: real iPhone Safari (no WebKit in this workspace). The iPhone menu names (Safari Websites, aA) come from Apple's and third-party how-tos and must be confirmed on your phone.</p>
+
+<h2>2. What leaves the phone</h2>
+<p>You asked to keep as much as possible on the phone and only collect for necessary features. This is every outgoing call, read from the code.</p>
+<figure>
+<svg viewBox="0 0 360 330" role="img" aria-label="Phone in the middle, with five outside services it talks to and what each one receives">
+  <rect x="120" y="110" width="120" height="110" rx="18" fill="#2B3A40"/>
+  <text x="180" y="150" text-anchor="middle" class="th w">Your phone</text>
+  <text x="180" y="170" text-anchor="middle" class="ts w" style="fill:#fff">Settings, saved roads,</text>
+  <text x="180" y="184" text-anchor="middle" class="ts w" style="fill:#fff">places, best score</text>
+  <text x="180" y="200" text-anchor="middle" class="ts w" style="fill:#fff">no account, no ID</text>
+  <g stroke="#0E7C7B" stroke-width="2" fill="none"><path d="M120 125 L70 60"/><path d="M180 110 L180 62"/><path d="M240 125 L295 60"/><path d="M120 205 L70 270"/><path d="M240 205 L295 270"/></g>
+  <rect x="8" y="24" width="124" height="48" rx="8" fill="#fff" stroke="#2B3A40"/><text x="14" y="42" class="tb">Map pictures</text><text x="14" y="57" class="ts">OpenFreeMap: area you view</text>
+  <rect x="118" y="6" width="124" height="48" rx="8" fill="#fff" stroke="#2B3A40"/><text x="124" y="24" class="tb">Place search</text><text x="124" y="39" class="ts">Photon: words + rough spot</text>
+  <rect x="228" y="24" width="124" height="48" rx="8" fill="#fff" stroke="#2B3A40"/><text x="234" y="42" class="tb">Routes</text><text x="234" y="57" class="ts">Valhalla: start, stops, end</text>
+  <rect x="8" y="262" width="124" height="52" rx="8" fill="#fff" stroke="#2B3A40"/><text x="14" y="280" class="tb">Road shapes</text><text x="14" y="295" class="ts">Overpass: box around the</text><text x="14" y="307" class="ts">area you save or roam</text>
+  <rect x="228" y="262" width="124" height="52" rx="8" fill="#fff" stroke="#2B3A40"/><text x="234" y="280" class="tb">Optional, off</text><text x="234" y="295" class="ts">OpenAI voice (your key),</text><text x="234" y="307" class="ts">traffic (your key), home PC</text>
+</svg>
+<figcaption>Every service also sees your internet address. Nothing is sent to Navi's own servers because there are none.</figcaption></figure>
+<div class="scroll"><table>
+<tr><th>Service</th><th>What it receives</th><th>Needed for</th></tr>
+<tr><td>OpenFreeMap</td><td>Tile requests (the area on screen)</td><td>Map picture</td></tr>
+<tr><td>Photon (Komoot)</td><td>Search words, plus your rough position as a ranking hint</td><td>Search, Near me</td></tr>
+<tr><td>Valhalla (FOSSGIS)</td><td>Route points, including where you start</td><td>Routes, road details</td></tr>
+<tr><td>Overpass (3 public servers)</td><td>Rectangle around the area; no identifying referrer (set to none)</td><td>Free roam, Fun loop, saved roads</td></tr>
+<tr><td>Hugging Face</td><td>One download of the free voice model</td><td>Free on-phone voice</td></tr>
+<tr><td>GitHub Pages</td><td>The page itself, and a version check</td><td>Hosting</td></tr>
+<tr><td>OpenAI / TomTom / HERE / your PC</td><td>Only if you turn them on with your own key or address</td><td>Optional voice and traffic</td></tr>
+</table></div>
+<p>Stored on the phone: settings, favourites and recents, voice-edit corrections, game best score, saved road pieces (IndexedDB), cached voice audio. Advertising: none, and none planned for launch. If ads ever arrive, the Canadian regulators' view is that location for ads is hard to justify (<a href="https://mcmillan.ca/insights/canadian-privacy-regulators-clarify-requirements-for-mobile-apps/">McMillan summary of the Tim Hortons findings</a>), so keep location out of anything ad-related.</p>
+
+<h2>3. The checklist</h2>
+<p>Built from the vibe-coding launch checklists that are going around (dev.to, Hostinger, iubenda, Hack Safe and others), then checked against the primary rules: Apple, Google Play, the OpenStreetMap Foundation, the service operators and the Canadian privacy regulator. Instagram and TikTok videos could not be watched: they sit behind a login wall. The blog and article versions of the same lists were used instead.</p>
+<div class="scroll"><table>
+<tr><th>#</th><th>Needed</th><th>Source</th><th>Navi</th><th>Fix</th></tr>
+
+<tr><td colspan="5" style="background:#F1F5F2"><b>Legal pages and notices</b></td></tr>
+<tr><td>1</td><td>Privacy policy, linked in the app and in each store listing; says what is collected, how, and every use</td><td><a href="https://developer.apple.com/distribute/app-review">Apple App Review</a>; <a href="https://support.google.com/googleplay/android-developer/answer/10144311?hl=he">Google Play User Data</a></td><td><span class="badge miss">missing</span></td><td>Phase 1. Draft from section 2.</td></tr>
+<tr><td>2</td><td>Terms of use: driving risk, no warranty, limit of liability, governing law, change notice</td><td><a href="https://termly.io/resources/articles/legal-requirements-for-apps/">Termly</a>; <a href="https://www.iubenda.com/en/blog/vibecoding-privacy-compliance/">iubenda</a></td><td><span class="badge miss">missing</span></td><td>Phase 1. Needs legal name and province.</td></tr>
+<tr><td>3</td><td>Safety disclaimer before driving</td><td>Rival apps carry one (<a href="https://apps.apple.com/mt/app/pacenote/id6762514014">Pacenote</a>)</td><td><span class="badge ok">present</span></td><td>Also put it in store text and terms.</td></tr>
+<tr><td>4</td><td>OpenStreetMap credit that users actually see, with a link to the licence page. Having it available is not enough.</td><td><a href="https://wiki.openstreetmap.org/wiki/Attribution">OSM attribution</a>; <a href="https://osmfoundation.org/wiki/Attribution">OSMF guideline</a></td><td><span class="badge part">partial</span></td><td>Map shows a compact credit. Add credits for routing, search, and a Credits screen.</td></tr>
+<tr><td>5</td><td>Open-source notices for what ships: 100 MIT, 13 BSD-3, 10 ISC, 3 Apache-2.0, 2 OFL fonts (licence scan)</td><td>Licence terms themselves</td><td><span class="badge part">partial</span></td><td>Credits exist in <code>docs/CREDITS.md</code> only. Generate a notices file and show it in the app.</td></tr>
+<tr><td>6</td><td>Say the voices are AI-made</td><td>Good practice; your own rule</td><td><span class="badge part">partial</span></td><td>In docs only. Add a line in Settings and in the store text.</td></tr>
+<tr><td>7</td><td>Trademark clearance for "Navi"</td><td>Your earlier search</td><td><span class="badge na">on hold</span></td><td>Do not print TM or R until cleared.</td></tr>
+
+<tr><td colspan="5" style="background:#F1F5F2"><b>Privacy law and store forms</b></td></tr>
+<tr><td>8</td><td>Ask clearly before using precise location and say why; precise location counts as sensitive in Canada</td><td><a href="https://www.priv.gc.ca/en/blog/20230629_02/">Privacy Commissioner</a></td><td><span class="badge part">partial</span></td><td>Add a short "why we need location" screen before the browser prompt.</td></tr>
+<tr><td>9</td><td>Apple privacy answers and Google Data safety form, accurate and kept in line with the policy</td><td><a href="https://developer.apple.com/support/app-privacy-on-the-app-store">Apple</a>; <a href="https://support.google.com/googleplay/android-developer/answer/10787469?hl=en">Google</a></td><td><span class="badge miss">not done</span></td><td>Phase 2. Google lets data used only in memory to serve the request go undeclared as "collected" (<a href="https://support.google.com/googleplay/answer/11416267?hl=ur">help page</a>); Photon and Valhalla calls need a careful answer.</td></tr>
+<tr><td>10</td><td>App must work reasonably without location when location is not essential. Apple rejects for this.</td><td><a href="https://developer.apple.com/forums/thread/810096">Apple developer forum report</a></td><td><span class="badge ok">fixed today</span></td><td>Start-point search covers the planning features.</td></tr>
+<tr><td>11</td><td>Quebec: plain-language policy, stricter consent, French for Quebec users</td><td><a href="https://www.cookiebot.com/en/law-25/">Cookiebot summary</a> (secondary source)</td><td><span class="badge miss">missing</span></td><td>Ask a Canadian privacy lawyer once, before paid launch.</td></tr>
+<tr><td>12</td><td>Way to delete what the app stores</td><td>Apple requires in-app account deletion only if accounts exist (<a href="https://developer.apple.com/support/offering-account-deletion-in-your-app">Apple</a>)</td><td><span class="badge part">partial</span></td><td>No accounts, so not required. "Delete saved roads" exists; add "Erase everything on this phone".</td></tr>
+
+<tr><td colspan="5" style="background:#F1F5F2"><b>Store and platform</b></td></tr>
+<tr><td>13</td><td>Working support link with contact details</td><td><a href="https://developer.apple.com/distribute/app-review">Apple</a></td><td><span class="badge miss">missing</span></td><td>Needs a contact email and a page.</td></tr>
+<tr><td>14</td><td>Background location needs a strong reason and a user-started, temporary service</td><td><a href="https://support.google.com/googleplay/android-developer/answer/16585319">Google Play</a></td><td><span class="badge na">later</span></td><td>Phone screen must stay on in the browser version (wake lock is used). A native wrapper needs this approval.</td></tr>
+<tr><td>15</td><td>Turn-by-turn on CarPlay needs Apple's navigation entitlement, which Apple reviews</td><td><a href="https://developer.apple.com/documentation/carplay/requesting-carplay-entitlements.md">Apple</a></td><td><span class="badge na">later</span></td><td>Apply early; it is a waiting game.</td></tr>
+<tr><td>16</td><td>Subscription rules (store billing, renewal wording, tax)</td><td>Not researched yet</td><td><span class="badge na">open</span></td><td>Research before the price goes live.</td></tr>
+
+<tr><td colspan="5" style="background:#F1F5F2"><b>Web and code hygiene (the viral lists)</b></td></tr>
+<tr><td>17</td><td>Security headers: CSP, no framing, no sniffing, referrer and permissions policies</td><td><a href="https://dev.to/decivo/12-things-to-check-before-you-ship-your-vibe-coded-app-n0p">dev.to checklist</a></td><td><span class="badge miss">not applied live</span></td><td>The rules are written in <code>public/_headers</code> but GitHub Pages ignores that file. GitHub Pages does not apply them, so the live site does not send these headers. Cloudflare Pages reads the file as written.</td></tr>
+<tr><td>18</td><td>No secret keys in the browser code</td><td><a href="https://github.com/boxed-dev/vibe-coding-security">Vibe-coding security list</a></td><td><span class="badge ok">present</span></td><td>Nothing bundled. Optional keys are typed by the driver and kept on the phone.</td></tr>
+<tr><td>19</td><td>Scan packages for known holes before launch</td><td>Same list</td><td><span class="badge ok">0 found</span></td><td>Add <code>npm audit</code> to the CI run.</td></tr>
+<tr><td>20</td><td>Crash fallback so a bug is not a blank screen</td><td>General practice</td><td><span class="badge miss">missing</span></td><td>Add an error screen with a reload button.</td></tr>
+<tr><td>21</td><td><code>security.txt</code>, robots, 404 page, share-preview tags</td><td><a href="https://www.13labs.au/guides/app-legal-domains-permissions-checklist">13Labs list</a>; RFC 9116</td><td><span class="badge miss">missing</span></td><td>Small files. security.txt needs the contact email.</td></tr>
+<tr><td>22</td><td>Accessibility to WCAG 2.1 AA: contrast, labels, target size</td><td>WCAG; <a href="https://wbcomdesigns.com/new-website-legal-checklist/">checklist</a></td><td><span class="badge ok">0 fails on 3 screens</span></td><td>Run axe on every screen before release; add a screen-reader pass on the phone.</td></tr>
+<tr><td>23</td><td>Rate limits and abuse control on your own server</td><td><a href="https://www.hostinger.com/tutorials/wp-content/uploads/sites/2/2026/08/Vibe-coded-app-security-checklist.pdf">Hostinger</a></td><td><span class="badge na">no server yet</span></td><td>Needed the day the licence server exists.</td></tr>
+
+<tr><td colspan="5" style="background:#F1F5F2"><b>Terms of the services Navi borrows</b></td></tr>
+<tr><td>24</td><td>Overpass: under about 100 queries and 10 MB a day each counts as fine; 10,000 a day is the ceiling; commercial use should be self-hosted; identify your app</td><td><a href="https://wiki.openstreetmap.org/wiki/Overpass_API">OSM wiki</a></td><td><span class="badge miss">breaks at scale</span></td><td>A 150 km square is about 2,250 requests. Fine for one tester, not for customers. Host our own road packs (Phase 2). Stop sending <code>no-referrer</code> so the server can see who is calling.</td></tr>
+<tr><td>25</td><td>OpenFreeMap: no stated attribution or commercial rule; offline map downloads limited to 3,000 pieces and 50 MB each, 4 at a time, own user agent; may stop any time</td><td><a href="https://openfreemap.org/tos/">OpenFreeMap terms</a></td><td><span class="badge part">watch</span></td><td>Ask them by email about commercial use. Keep a self-hosted fallback.</td></tr>
+<tr><td>26</td><td>Valhalla demo and Photon: community servers, fair use only</td><td>Your own <code>docs/DATA-AND-TERMS.md</code>; the FOSSGIS page blocked automated reading, so the exact limits are not confirmed</td><td><span class="badge part">watch</span></td><td>Self-host before real traffic (see the backend plan).</td></tr>
+<tr><td>27</td><td>If we serve our own road packs from our servers, that is publishing a derived OSM database: it must be offered under the same open licence with credit</td><td><a href="https://wiki.openstreetmap.org/wiki/License/Use_Cases">OSM use cases</a></td><td><span class="badge na">design rule</span></td><td>Build it in from the start: credit, licence link, and a public download of the packs.</td></tr>
+</table></div>
+<div class="callout"><b>Not in any list but real:</b> the iPhone web version cannot keep talking with the screen off or another app in front. Pacenote, a rival, gets this from a native background service (<a href="https://apps.apple.com/mt/app/pacenote/id6762514014">its store text</a>). For a driver with the phone mounted and the screen on, the web app is fine. It is a limit to say plainly in the store text.</div>
+
+<h2>4. Navi next to the map apps people use</h2>
+<p>Sourced from store pages and reviews; Google Maps, Apple Maps and Waze are described from general knowledge and were not re-checked today.</p>
+<div class="scroll"><table>
+<tr><th>App</th><th>What it does well</th><th>What users and reviewers complain about</th><th>Source</th></tr>
+<tr><td>Google Maps, Apple Maps, Waze</td><td>Live traffic, incidents, lane guidance, speed-camera and police reports (Waze), business info, huge reach</td><td>Data collection and location history. Waze leans on crowd reports; Google paid a US$391.5 million settlement over misleading location tracking</td><td><a href="https://tuta.com/blog/google-maps-alternatives-foss.html">Tuta</a>, <a href="https://nordvpn.com/de/blog/google-maps-alternatives/">NordVPN</a></td></tr>
+<tr><td>OsmAnd, Organic Maps</td><td>Full offline maps and navigation, no ads, no tracking, free</td><td>OsmAnd is powerful but complicated and its free version is limited. Organic Maps is simple and has no satellite view or live traffic. The community split its project in 2025 (CoMaps)</td><td><a href="https://privacyguides.org/en/maps">Privacy Guides</a>, <a href="https://wiki.openstreetmap.org//Organic_Maps">OSM wiki</a></td></tr>
+<tr><td>Calimoto</td><td>Round-trip planner, twisty roads, voice navigation with caution points, GPX import, offline maps and lean-angle analysis (paid), tens of thousands of community routes</td><td>Offline maps and key features sit behind Premium. Reviewers asked for CarPlay</td><td><a href="https://apps.apple.com/in/app/id1209129603">App Store</a>, <a href="https://www.bennetts.co.uk/bikesocial/reviews/products/motorcycle-technology/calimoto-motorcycle-route-planner-review">Bennetts</a></td></tr>
+<tr><td>Kurviger</td><td>Curvy route planning, voice navigation, offline maps, round trips, cloud sync, CarPlay; yearly plans about US$13 to US$25</td><td>Listing says it contains advertising. A forum user found routing still needs internet even with offline maps</td><td><a href="https://apps.apple.com/app/id6473445827">App Store</a>, <a href="https://forum.kurviger.com/t/navigation-first-impressions-and-problem/20283">forum</a></td></tr>
+<tr><td>Komoot</td><td>Route discovery, offline maps</td><td>Reviewers report offline maps crashing after an update</td><td><a href="https://ie.trustpilot.com/review/komoot.de">Trustpilot</a></td></tr>
+<tr><td><b>Pacenote</b> (iPhone, free)</td><td>Rally-style calls, recce mode to write your own notes, background location so calls continue with the screen off</td><td>Aimed at trails and closed courses; too few ratings to judge</td><td><a href="https://apps.apple.com/us/app/pacenote/id6762514014">App Store</a></td></tr>
+<tr><td><b>Tornante</b> (iPhone, free)</td><td>Pacenotes for any mountain road, corner grades 1 to 6, speed-aware timing, a recorded human voice, 11 languages, circuit mode</td><td>New; no review data found</td><td><a href="https://apps.apple.com/app/id6791901050">App Store</a></td></tr>
+</table></div>
+<div class="callout red"><b>Plain warning:</b> Tornante is already a free iPhone co-driver for ordinary roads, with grades 1 to 6 and a human voice. Navi's rally idea is not empty ground. Do not claim "first" in any store text. Check what Navi does that those two do not, with the apps in hand, before writing the listing.</div>
+
+<h3>What they have and Navi lacks</h3>
+<div class="scroll"><table>
+<tr><th>Gap</th><th>Who has it</th><th>Worth it?</th></tr>
+<tr><td>Full offline map picture (not just road shapes)</td><td>OsmAnd, Organic Maps, Calimoto, Kurviger</td><td>Yes. Pairs with the draw-an-area save. Follow the 3,000-piece rule above.</td></tr>
+<tr><td>Calls with the screen off, in the background</td><td>Pacenote</td><td>Yes, but only with the native app (Phase 2).</td></tr>
+<tr><td>CarPlay and Android Auto</td><td>Kurviger, Calimoto (coming)</td><td>Later. Apple reviews the request.</td></tr>
+<tr><td>Community and shared routes, cloud sync</td><td>Calimoto, Kurviger</td><td>Later, and needs accounts and a privacy page. Weigh against the "no account" promise.</td></tr>
+<tr><td>Ride recording and lean angle</td><td>Calimoto</td><td>Low. Not the rally idea.</td></tr>
+<tr><td>Live traffic, cameras, incidents</td><td>Google, Apple, Waze</td><td>Skip for now. Say plainly what Navi is: a co-driver, not a traffic app.</td></tr>
+</table></div>
+<h3>What Navi has that they do not (to confirm before claiming)</h3>
+<ul>
+<li>Plain-English calls by default, with the Numbers 1 to 6 style one tap away and explained.</li>
+<li>Free roam that follows the road you are on without a destination, and a Fun loop that picks the twistiest round trip with no road driven twice.</li>
+<li>No account, no ads, no tracking, and roads saved on the phone for use with no signal.</li>
+<li>Game mode for practising calls while parked.</li>
+</ul>
+<p class="small">Price check: Navi's plan of US$49 a year is about double Kurviger's yearly plan range. Your launch-window lifetime price matters more than the yearly one. Worth a test before you commit.</p>
+
+<h2>5. The order to do it in</h2>
+<div class="stage s0"><b>Done today, waiting to publish</b><ul><li>Location help, start point, draw-an-area, contrast fixes, honest wording.</li></ul></div>
+<div class="stage s1"><b>Phase 1: legal minimum, before anyone else uses it (about 2 days)</b>
+<ul>
+<li>"About and legal" screen: what leaves the phone, safety disclaimer, map credits and licence link, open-source notices, AI-voice note, erase-everything button.</li>
+<li>Privacy policy and terms as plain pages, drafted from section 2.</li>
+<li>Error screen, 404, robots, share tags, <code>npm audit</code> in CI.</li>
+<li>Stop sending <code>no-referrer</code> to Overpass.</li>
+<li>Needs from you: a contact email, the legal name or "sole proprietor", and your province.</li>
+</ul></div>
+<div class="stage s2"><b>Phase 2: platform-ready (the backend plan, in this order)</b>
+<ul>
+<li>Move to Cloudflare Pages so the written security headers apply.</li>
+<li>Own road packs on cheap storage, built from OpenStreetMap, replacing Overpass for users. Credit and licence link built in.</li>
+<li>Native wrapper with background location; store privacy forms; CarPlay request.</li>
+<li>A Canadian privacy lawyer reads the policy once.</li>
+</ul></div>
+<div class="stage s3"><b>Phase 3: growth</b>
+<ul><li>Offline map picture, shared routes if you decide to add accounts, convoy rides, more languages.</li></ul></div>
+
+<footer>
+<p><b>Limits of this page.</b> It is a working checklist, not legal advice. Instagram and TikTok sources were not reachable. The FOSSGIS routing terms and Photon's policy pages blocked automated reading, so their limits are taken from your own notes. Real iPhone behaviour is untested until you try it. Third-party claims are paraphrased from the linked pages, read on 25 Nov 2026.</p>
+</footer>
+</main>
+</body>
+</html>
