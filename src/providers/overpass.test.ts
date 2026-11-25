@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildQuery, cellOf, cellsAround, clearRoadCache, fetchCell, parseOverpass } from './overpass';
+import { HEDGE_MS, OVERPASS_MIRRORS, buildQuery, cellOf, cellsAround, clearRoadCache, fetchCell, parseOverpass } from './overpass';
 
 const sample = {
   elements: [
@@ -15,6 +15,7 @@ const sample = {
 };
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   clearRoadCache();
 });
@@ -51,7 +52,7 @@ describe('overpass road data', () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', async (url: string) => {
       calls.push(url);
-      if (url.startsWith('https://overpass-api.de')) throw new Error('busy');
+      if (url.startsWith(OVERPASS_MIRRORS[0])) throw new Error('busy');
       return { ok: true, status: 200, json: async () => sample };
     });
     const a = await fetchCell({ i: 1, j: 2 });
@@ -71,12 +72,12 @@ describe('overpass road data', () => {
     let n = 0;
     vi.stubGlobal('fetch', async () => {
       n++;
-      if (n <= 3) return { ok: false, status: 502, json: async () => ({}) };
+      if (n <= OVERPASS_MIRRORS.length) return { ok: false, status: 502, json: async () => ({}) };
       return { ok: true, status: 200, json: async () => sample };
     });
     const a = await fetchCell({ i: 5, j: 6 });
     expect(a).toHaveLength(3);
-    expect(n).toBe(4); // three servers failed, then the first one answered in round two
+    expect(n).toBe(OVERPASS_MIRRORS.length + 1); // every server failed, then one answered in round two
   });
 
   it('stops at once when the caller cancels', async () => {
@@ -89,5 +90,78 @@ describe('overpass road data', () => {
     });
     await expect(fetchCell({ i: 7, j: 8 }, ctl.signal)).rejects.toThrow();
     expect(n).toBe(1);
+  });
+
+  it('does not wait for a hung server: the next one is asked after a short delay and the first good answer wins', async () => {
+    vi.useFakeTimers();
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', (url: string, init: { signal: AbortSignal }) => {
+      asked.push(url);
+      if (url.startsWith(OVERPASS_MIRRORS[0])) return new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(new Error('aborted'))));
+      return Promise.resolve({ ok: true, status: 200, json: async () => sample });
+    });
+    const p = fetchCell({ i: 11, j: 12 });
+    await vi.advanceTimersByTimeAsync(HEDGE_MS + 50);
+    expect(await p).toHaveLength(3);
+    expect(asked).toHaveLength(2);
+  });
+
+  it('skips an error page that came back as text and a query the server gave up on', async () => {
+    const answers: unknown[] = ['not json', { elements: [], remark: 'runtime error: Query timed out in "query" at line 1' }, sample];
+    let n = 0;
+    vi.stubGlobal('fetch', async () => {
+      const a = answers[n++];
+      return { ok: true, status: 200, json: async () => { if (typeof a === 'string') throw new SyntaxError('bad json'); return a; } };
+    });
+    expect(await fetchCell({ i: 13, j: 14 })).toHaveLength(3);
+    expect(n).toBe(3);
+  });
+
+  it('asks the server that answered last first, and the one that just failed last', async () => {
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      asked.push(url);
+      if (url.startsWith(OVERPASS_MIRRORS[0])) throw new Error('down');
+      return { ok: true, status: 200, json: async () => sample };
+    });
+    await fetchCell({ i: 15, j: 16 });
+    asked.length = 0;
+    await fetchCell({ i: 17, j: 18 });
+    expect(asked).toHaveLength(1);
+    expect(asked[0].startsWith(OVERPASS_MIRRORS[1])).toBe(true);
+  });
+
+  it('asks for at most two squares at a time', async () => {
+    let now = 0;
+    let peak = 0;
+    vi.stubGlobal('fetch', async () => {
+      now++;
+      peak = Math.max(peak, now);
+      await new Promise((r) => setTimeout(r, 5));
+      now--;
+      return { ok: true, status: 200, json: async () => sample };
+    });
+    await Promise.all(Array.from({ length: 9 }, (_, k) => fetchCell({ i: 100 + k, j: 200 })));
+    expect(peak).toBeLessThanOrEqual(2);
+  });
+
+  it('does not push a server to the back just because it said "too fast"', async () => {
+    const asked: string[] = [];
+    let n = 0;
+    vi.stubGlobal('fetch', async (url: string) => {
+      asked.push(url);
+      if (n++ === 0) throw new TypeError('Failed to fetch');
+      return { ok: true, status: 200, json: async () => sample };
+    });
+    await fetchCell({ i: 301, j: 1 }); // first server refuses, second answers
+    asked.length = 0;
+    await fetchCell({ i: 302, j: 1 });
+    expect(asked[0].startsWith(OVERPASS_MIRRORS[1])).toBe(true); // the one that answered last goes first
+    clearRoadCache();
+    n = 0;
+    asked.length = 0;
+    await fetchCell({ i: 303, j: 1 }); // refusal again, served by the second
+    await fetchCell({ i: 304, j: 1 });
+    expect(asked.filter((u) => u.startsWith(OVERPASS_MIRRORS[0])).length).toBeLessThanOrEqual(1);
   });
 });
