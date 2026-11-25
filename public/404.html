@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found | Navi</title><meta name="robots" content="noindex">
+<style>body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#07080a;color:#f5f6f8;font:17px/1.5 system-ui,-apple-system,sans-serif;text-align:center;padding:24px}
+a{display:inline-block;margin-top:16px;padding:14px 22px;border-radius:16px;background:#e41626;color:#fff;font-weight:700;text-decoration:none}p{color:#aab2bd}</style></head>
+<body><main><h1>That page is not here</h1><p>The link may be old or mistyped. Navi itself is one tap away.</p>
+<a id="home" href="/">Open Navi</a></main>
+<script>
+// the app lives at the site root, or one folder down on github.io project pages
+var seg=location.pathname.split('/')[1];
+document.getElementById('home').href=(/\.github\.io$/.test(location.hostname)&&seg)?'/'+seg+'/':'/';
+</script></body></html>

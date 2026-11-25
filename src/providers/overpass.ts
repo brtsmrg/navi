@@ -90,7 +90,7 @@ const cache = new Map<string, RoadWay[]>();
 const inflight = new Map<string, Promise<RoadWay[]>>();
 
 async function fetchOne(url: string, query: string, signal: AbortSignal): Promise<unknown> {
-  const res = await fetch(`${url}?data=${encodeURIComponent(query)}`, { signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
+  const res = await fetch(`${url}?data=${encodeURIComponent(query)}`, { signal, credentials: 'omit', referrerPolicy: 'strict-origin-when-cross-origin' });
   if (!res.ok) throw new Error(`Road data failed (${res.status})`);
   return res.json();
 }

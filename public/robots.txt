@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# The privacy policy and terms are public. There is nothing private on this site.

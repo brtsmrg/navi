@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy | Navi</title>
+<meta name="description" content="What Navi keeps, what it sends, and who sees it.">
+<meta name="robots" content="index,follow">
+<style>
+:root{color-scheme:light dark;--bg:#f6f7f9;--ink:#0b0d10;--mute:#4a5563;--card:#fff;--line:#d5d9df;--brand:#c4101e}
+@media (prefers-color-scheme:dark){:root{--bg:#07080a;--ink:#f5f6f8;--mute:#aab2bd;--card:#0e1013;--line:#262a31;--brand:#ff5a66}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:680px;margin:0 auto;padding:20px 18px 64px}
+h1{font-size:32px;line-height:1.15;margin:.3em 0 .2em}h2{font-size:22px;margin:1.8em 0 .3em}p,li{color:var(--mute)}p,ul{margin:.6em 0}li{margin:.35em 0}
+a{color:var(--brand);font-weight:600}.draft{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 14px;color:var(--ink);font-size:15px}
+.ph{background:#ffe9a8;color:#3a2a00;padding:0 4px;border-radius:4px;font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:15px;background:var(--card)}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--mute)}th{color:var(--ink)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px}table{min-width:520px}
+nav a{margin-right:16px}small{color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+<nav><a href="./">Open Navi</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav>
+
+<h1>Privacy policy</h1>
+<p><small>Updated 25 November 2026</small></p>
+<p class="draft"><strong>Draft.</strong> This text describes what the app does today. It has not been reviewed by a lawyer. Highlighted brackets are blanks the owner must fill in before the app is offered in a store.</p>
+
+<h2>The short version</h2>
+<ul>
+<li>Navi has no account, no ads, no analytics and no tracking. It sets no cookies of its own.</li>
+<li>Your settings, saved places, history, saved roads and best score stay on your phone.</li>
+<li>Navi has no server of its own. To work, it asks open map services, and those services can see your internet address and the details listed below.</li>
+</ul>
+
+<h2>Who is responsible</h2>
+<p><span class="ph">[ADD LEGAL NAME]</span>, Canada. Contact: <span class="ph">[ADD CONTACT EMAIL]</span>.</p>
+
+<h2>What stays on your phone</h2>
+<ul>
+<li>Settings (voice, units, vehicle, theme, optional keys and addresses you type in).</li>
+<li>Saved places, favourites, recent searches and trips.</li>
+<li>Voice corrections you make, and your best score in the practice game.</li>
+<li>Saved road shapes for offline use, and voice audio the phone has made or downloaded.</li>
+</ul>
+<p>It is held in the browser's storage on your phone. You can back it up or erase it all from Settings, then About and legal, then "Erase everything on this phone".</p>
+
+<h2>Your location</h2>
+<p>Navi asks your phone for your location only when you use a feature that needs it: Free roam, Near me, Fun loop, planning from where you are, and the live co-driver while you drive. Your phone asks you first. If you say no, Navi still works for planning from a start point you search for, but Free roam cannot work.</p>
+<p>Location is used on the phone to draw the map and call the road. Parts of it are sent to the services below when a feature needs them.</p>
+
+<h2>What is sent, and to whom</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="What each service receives"><table>
+<tr><th>Service</th><th>What it receives</th><th>Why</th></tr>
+<tr><td>OpenFreeMap</td><td>Requests for the map pictures of the area on screen</td><td>Drawing the map</td></tr>
+<tr><td>Photon (Komoot)</td><td>The words you search for, plus your position to rank nearby places, and the point you ask about when you look up an address</td><td>Search, Near me</td></tr>
+<tr><td>Valhalla (FOSSGIS)</td><td>The start, stops and end of a route</td><td>Routes and road details</td></tr>
+<tr><td>Overpass servers (overpass-api.de, overpass.kumi.systems, overpass.private.coffee)</td><td>A box around the area you drive in or save</td><td>Road shapes for Free roam, Fun loop and saved roads</td></tr>
+<tr><td>Hugging Face</td><td>One download of the free voice model</td><td>Optional free voice on the phone</td></tr>
+<tr><td>GitHub Pages</td><td>The request for the Navi page and a version check</td><td>Hosting the app</td></tr>
+</table></div>
+<p>Each of these services also receives your internet address and the details your browser sends with any request. Navi does not send them a name, an account, an email or a device identifier, because it has none to send.</p>
+
+<h2>Optional services, off by default</h2>
+<ul>
+<li><strong>OpenAI voice:</strong> if you paste your own OpenAI key, the text of the calls is sent to OpenAI to be spoken. Your key stays on your phone.</li>
+<li><strong>Traffic (TomTom or HERE):</strong> if you add your own key, points along your route are sent to that provider.</li>
+<li><strong>Your own PC voice:</strong> if you connect one, call text goes to the address you gave.</li>
+</ul>
+
+<h2>Saved roads and the open map licence</h2>
+<p>Map data is © OpenStreetMap contributors, available under the Open Database Licence. Saved roads are kept on your phone. Downloading them asks the public Overpass servers for the area you chose.</p>
+
+<h2>How long things are kept</h2>
+<p>Navi keeps nothing on a server. Data on your phone stays until you erase it or clear the browser's storage. The services above keep what they receive under their own policies, for example the <a href="https://osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap Foundation</a>, <a href="https://openai.com/policies/privacy-policy">OpenAI</a>, <a href="https://huggingface.co/privacy">Hugging Face</a> and <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub</a>.</p>
+
+<h2>Your choices</h2>
+<ul>
+<li>Say no to location, and plan from a start point instead.</li>
+<li>Do not turn on the optional services.</li>
+<li>Back up or erase everything from Settings.</li>
+<li>Write to <span class="ph">[ADD CONTACT EMAIL]</span> with any question about this policy. Navi holds no personal file about you, so there is nothing to look up, correct or delete on our side.</li>
+</ul>
+
+<h2>Children</h2>
+<p>Navi is a driving tool. It is not aimed at children and does not knowingly collect anything from them.</p>
+
+<h2>Changes</h2>
+<p>If what Navi sends or keeps changes, this page changes first and the date at the top moves. Adding any account, advertising or analytics would need a new version of this policy and a clear request for your consent.</p>
+
+</main>
+</body>
+</html>

@@ -35,9 +35,11 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: 'index.html',
+        // opening the licence, robots or version text in a tab must show that file, not the app
+        navigateFallbackDenylist: [/\.txt$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // the default recorded voice ships with the app; the other voices are kept after first use
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}', 'voices/george.{mp3,json}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}', 'voices/george.{mp3,json}', 'licenses.txt'],
         globIgnores: ['voices/{michael,emma,heart}.*', 'assets/kokoro.worker-*', 'assets/*.wasm'],
         // map tiles you have already looked at keep working with no signal (the style and tiles are public OpenFreeMap files)
         runtimeCaching: [

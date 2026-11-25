@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/index.css';
 import { installErrorBanner } from './lib/errorBanner';
 import { ensureFresh } from './lib/freshness';
@@ -16,6 +17,8 @@ if (location.protocol === 'https:' || location.hostname === 'localhost') registe
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

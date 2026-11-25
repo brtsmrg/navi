@@ -20,7 +20,7 @@ if not errorlevel 1 (
   echo Nothing new to commit. Trying push anyway. >> "%LOG%"
   goto :push
 )
-> "%TEMP%\navi-update-msg.txt" echo Location fix: blocked-location help with iPhone steps, pick a start point without GPS, draw a circle or square (max 150 km) to save roads offline
+> "%TEMP%\navi-update-msg.txt" echo Legal minimum: About and legal screen, privacy and terms drafts, erase-all-data button, error screen, 404 and security files, production dependency audit script
 >> "%TEMP%\navi-update-msg.txt" echo.
 >> "%TEMP%\navi-update-msg.txt" echo Co-Authored-By: Claude Sonnet 5.5 ^<noreply@anthropic.com^>
 >> "%TEMP%\navi-update-msg.txt" echo Claude-Session: https://claude.ai/code/session_01Deqsd9QidtoJLHHH6CWNy7

@@ -15,7 +15,10 @@
     "cap:android": "npm run build && (test -d android || cap add android) && node scripts/native-patch.mjs android && cap sync android",
     "cap:ios": "npm run build && (test -d ios || cap add ios) && node scripts/native-patch.mjs ios && cap sync ios",
     "xtool:sync": "npm run build && node scripts/xtool-sync.mjs",
-    "test:live": "LIVE=1 vitest run src/providers/live.test.ts"
+    "test:live": "LIVE=1 vitest run src/providers/live.test.ts",
+    "notices": "node scripts/make-notices.mjs",
+    "launch-check": "node scripts/launch-check.mjs",
+    "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "license": "UNLICENSED",
   "dependencies": {

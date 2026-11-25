@@ -12,6 +12,7 @@ import { DEVICE_VOICES, type DeviceVoice } from '@/lib/kokoro/engine';
 import { MODEL_MB } from '@/lib/kokoro/urls';
 import { useTraffic } from '@/lib/traffic';
 import { VEHICLES } from './vehicles';
+import { AboutLegal } from './AboutLegal';
 import { Button, Range, Segmented, Sheet, Toggle } from './ui';
 
 const PROFILES: { value: DriverProfile; label: string; blurb: string }[] = [
@@ -64,6 +65,7 @@ export function SettingsDialog() {
   const [voices, setVoices] = useState<VoiceInfo[]>([]);
   const [voiceMsg, setVoiceMsg] = useState('');
   const [dataMsg, setDataMsg] = useState('');
+  const [aboutOpen, setAboutOpen] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const lib = useLibrary();
 
@@ -350,7 +352,7 @@ export function SettingsDialog() {
         </Section>
 
         <Section title="Your data">
-          <p className="text-sm text-mute">Saved places, history and settings stay on this device. Nothing is uploaded.</p>
+          <p className="text-sm text-mute">Saved places, history and settings stay on this phone. Navi has no account and no server of its own.</p>
           <div className="grid grid-cols-2 gap-2">
             <Button variant="raise" onClick={download}><Download size={18} /> Back up</Button>
             <Button variant="raise" onClick={() => file.current?.click()}><Upload size={18} /> Restore</Button>
@@ -359,7 +361,13 @@ export function SettingsDialog() {
           <Button variant="quiet" className="w-full" onClick={() => { lib.wipe(); setDataMsg('Saved places and history cleared.'); }}>Clear saved places and history</Button>
           {dataMsg && <p role="status" className="text-sm text-mute">{dataMsg}</p>}
         </Section>
+
+        <Section title="About">
+          <p className="text-sm text-mute">Privacy, terms, credits, licences and how to erase everything Navi keeps on this phone.</p>
+          <Button variant="raise" className="w-full" onClick={() => setAboutOpen(true)}>About and legal</Button>
+        </Section>
       </div>
+      <AboutLegal open={aboutOpen} onOpenChange={setAboutOpen} />
     </Sheet>
   );
 }
