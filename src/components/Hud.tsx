@@ -45,7 +45,14 @@ export function Hud() {
         <div className={cn('pointer-events-auto rounded-3xl bg-panel/95 p-4 shadow-2xl backdrop-blur', alert && 'ring-4 ring-sev1')}>
           {next ? (
             <div className="flex items-center gap-3">
-              {words ? <TurnArrow note={next} size={92} /> : <Glyph note={next} size={84} />}
+              {words ? (
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  <TurnArrow note={next} size={92} />
+                  {next.glyph && next.glyph.length >= 4 && <Glyph note={next} size={52} />}
+                </div>
+              ) : (
+                <Glyph note={next} size={84} />
+              )}
               <div className="min-w-0 flex-1">
                 <TurnText note={next} opts={opts} readout={settings.readout} big />
                 <div className="mt-2 font-display text-4xl font-semibold leading-none">{formatDistance(toNext, settings.units)}</div>

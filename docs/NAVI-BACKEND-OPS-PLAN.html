@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navi: where it runs and how we keep it running</title>
+<style>
+:root{
+  --paper:#EDF1EE; --card:#F8FAF8; --ink:#16262B; --soft:#4D6168; --line:#B9C5C0;
+  --road:#2B3A40; --teal:#0E7C7B; --amber:#E8A200; --red:#C8402B; --green:#2F8F4E; --sky:#DCE9EA;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:16px/1.55 "Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif}
+main{max-width:640px;margin:0 auto;padding:0 16px 64px}
+h1,h2,h3{font-family:"Franklin Gothic Medium","Arial Narrow","Segoe UI",sans-serif;line-height:1.15;margin:0}
+h1{font-size:34px;letter-spacing:-.5px}
+h2{font-size:25px;margin:48px 0 6px}
+h3{font-size:18px;margin:0 0 4px}
+p{margin:8px 0}
+.lede{font-size:18px;color:var(--ink)}
+.small{font-size:14px;color:var(--soft)}
+header{padding:28px 0 8px}
+.tag{display:inline-block;font-size:13px;background:var(--road);color:#fff;padding:2px 10px;border-radius:999px}
+figure{margin:14px 0 6px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:14px;color:var(--soft);padding:6px 4px 2px}
+svg text{font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;fill:var(--ink)}
+.t{font-size:13px}.tb{font-size:13px;font-weight:700}.ts{font-size:11.5px;fill:#4D6168}.th{font-size:15px;font-weight:700}
+.w{fill:#fff!important}
+.box{fill:#fff;stroke:var(--road);stroke-width:1.6}
+.dot{stroke:#fff;stroke-width:1.5}
+.badge{display:inline-block;font-size:12.5px;padding:1px 9px;border-radius:999px;color:#fff;margin-right:4px;vertical-align:1px}
+.b-ok{background:var(--green)}.b-warn{background:#B77C00}.b-bad{background:var(--red)}.b-unk{background:#6A5A8A}
+table{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--sky);font-weight:700}
+tr:last-child td{border-bottom:0}
+.stage{background:var(--card);border:1px solid var(--line);border-left:8px solid var(--teal);border-radius:12px;padding:12px 14px;margin:12px 0}
+.stage.s1{border-left-color:var(--amber)}.stage.s2{border-left-color:var(--teal)}.stage.s3{border-left-color:var(--green)}.stage.s0{border-left-color:var(--red)}
+.stage ul{margin:6px 0 0;padding-left:20px}
+.stage li{margin:3px 0}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tile b{display:block;font-size:22px;font-family:"Franklin Gothic Medium","Arial Narrow",sans-serif}
+.callout{background:#FFF4D6;border:1px solid #E7C873;border-radius:12px;padding:10px 14px;margin:14px 0}
+.callout.red{background:#FBE4DF;border-color:#E3A99D}
+code{background:#E2E9E6;padding:1px 5px;border-radius:4px;font-size:13.5px}
+ol.plain{padding-left:20px}
+footer{margin-top:40px;font-size:13.5px;color:var(--soft)}
+@media (min-width:560px){h1{font-size:42px}}
+@media (prefers-reduced-motion:no-preference){
+  .roadline{stroke-dasharray:6 8;animation:dash 2.4s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:-28}}
+}
+a{color:var(--teal)}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <span class="tag">Plan dated 25 Nov 2026</span>
+  <h1 style="margin-top:10px">Navi: where it runs, and how we keep it running</h1>
+  <p class="lede">Short answer: Navi needs very few servers. The app lives on the phone. We rent a little static storage, one tiny licence service and one small router machine. Everything else is borrowed, free or cheap.</p>
+</header>
+
+<figure>
+<svg viewBox="0 0 360 410" role="img" aria-label="Road with four stops: Today, Before launch, Launch, Growth, each with a monthly cost">
+  <path d="M40 24 C 40 80, 58 90, 40 140 S 22 220, 40 270 S 58 330, 40 380" fill="none" stroke="#2B3A40" stroke-width="22" stroke-linecap="round"/>
+  <path class="roadline" d="M40 24 C 40 80, 58 90, 40 140 S 22 220, 40 270 S 58 330, 40 380" fill="none" stroke="#E8A200" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="40" cy="40" r="15" fill="#C8402B" class="dot"/><text x="40" y="45" text-anchor="middle" class="tb w">0</text>
+  <text x="78" y="36" class="th">Today</text><text x="78" y="54" class="t">No servers. Borrows 5 public services.</text><text x="78" y="70" class="ts">About $0 a month</text>
+  <circle cx="40" cy="140" r="15" fill="#E8A200" class="dot"/><text x="40" y="145" text-anchor="middle" class="tb w">1</text>
+  <text x="78" y="136" class="th">Before launch</text><text x="78" y="154" class="t">Own maps and roads on cheap storage</text><text x="78" y="170" class="ts">About $10 to $25 a month</text>
+  <circle cx="40" cy="260" r="15" fill="#0E7C7B" class="dot"/><text x="40" y="265" text-anchor="middle" class="tb w">2</text>
+  <text x="78" y="256" class="th">Launch</text><text x="78" y="274" class="t">Licences, payments, watchers</text><text x="78" y="290" class="ts">About $25 to $70 a month</text>
+  <circle cx="40" cy="370" r="15" fill="#2F8F4E" class="dot"/><text x="40" y="375" text-anchor="middle" class="tb w">3</text>
+  <text x="78" y="366" class="th">Growth</text><text x="78" y="384" class="t">Convoy rides, sync, more routers</text><text x="78" y="400" class="ts">$70 to $350+ a month</text>
+</svg>
+<figcaption>The road from here to a paying app. Cost figures are planning estimates, not quotes.</figcaption>
+</figure>
+
+<div class="callout">
+<b>How to read the badges:</b>
+<span class="badge b-ok">checked</span> read on a vendor page on 25 Nov 2026.
+<span class="badge b-warn">varies</span> sources disagree.
+<span class="badge b-unk">not checked</span> from general knowledge, check before relying on it.
+</div>
+
+<h2>1. Today: what Navi leans on</h2>
+<p>Navi is a web app saved on the phone. It has no server of its own. Each time it needs a route, a place name or a road shape, it asks a free public service.</p>
+
+<figure>
+<svg viewBox="0 0 360 400" role="img" aria-label="Phone app connects to five public services; Overpass is red, routing and search amber, basemap and voice model green">
+  <rect x="10" y="150" width="104" height="90" rx="14" class="box"/>
+  <text x="62" y="186" text-anchor="middle" class="th">Navi</text><text x="62" y="204" text-anchor="middle" class="ts">on the phone</text><text x="62" y="220" text-anchor="middle" class="ts">(web app)</text>
+  <g stroke="#2B3A40" stroke-width="1.6" fill="none">
+    <path d="M114 180 C 145 180, 140 40, 176 40"/><path d="M114 190 C 145 190, 145 112, 176 112"/><path d="M114 195 L 176 195"/><path d="M114 205 C 145 205, 145 278, 176 278"/><path d="M114 215 C 145 215, 140 352, 176 352"/>
+  </g>
+  <rect x="176" y="12" width="174" height="56" rx="10" class="box"/><circle cx="192" cy="30" r="7" fill="#C8402B" class="dot"/><text x="206" y="34" class="tb">Overpass</text><text x="190" y="54" class="ts">Roads. Slow or 502s.</text>
+  <rect x="176" y="84" width="174" height="56" rx="10" class="box"/><circle cx="192" cy="102" r="7" fill="#E8A200" class="dot"/><text x="206" y="106" class="tb">Valhalla demo</text><text x="190" y="126" class="ts">Routing. Demo only.</text>
+  <rect x="176" y="167" width="174" height="56" rx="10" class="box"/><circle cx="192" cy="185" r="7" fill="#E8A200" class="dot"/><text x="206" y="189" class="tb">Photon</text><text x="190" y="209" class="ts">Place search. Shared.</text>
+  <rect x="176" y="250" width="174" height="56" rx="10" class="box"/><circle cx="192" cy="268" r="7" fill="#2F8F4E" class="dot"/><text x="206" y="272" class="tb">OpenFreeMap</text><text x="190" y="292" class="ts">Map pictures. Steady.</text>
+  <rect x="176" y="324" width="174" height="56" rx="10" class="box"/><circle cx="192" cy="342" r="7" fill="#2F8F4E" class="dot"/><text x="206" y="346" class="tb">Hugging Face</text><text x="190" y="366" class="ts">Voice model, once.</text>
+  <text x="10" y="270" class="ts">App is hosted free</text><text x="10" y="286" class="ts">on GitHub Pages</text>
+</svg>
+<figcaption>Red means the app can fail for real users. Amber means it works but we cannot rely on it. Green is fine for now.</figcaption>
+</figure>
+
+<div class="callout red">
+<b>The big risk is Overpass.</b> <span class="badge b-ok">checked</span> Its public servers are meant for light use, around 10,000 questions a day counted across all users of an app, and commercial apps are asked to run their own or pay. Paying customers should not depend on it.
+</div>
+<p class="small"><span class="badge b-warn">varies</span> GitHub Pages is also meant for sites, not for running a business. Check their current terms before charging money from it. Moving the app to Cloudflare Pages is a one-day job.</p>
+
+<h2>2. The plan: rent as little as possible</h2>
+<p>Three rented things. Everything static (app, maps, road packs, voice files) sits on cheap storage with a global cache. One tiny service handles licences. One small machine does routing.</p>
+
+<figure>
+<svg viewBox="0 0 360 640" role="img" aria-label="Architecture: phones on top, Cloudflare edge with static app, R2 storage and Worker with licence database, one small router server, payment providers, and monitoring at the bottom">
+  <rect x="14" y="10" width="332" height="70" rx="14" fill="#DCE9EA" stroke="#2B3A40" stroke-width="1.6"/>
+  <text x="180" y="30" text-anchor="middle" class="th">Drivers</text>
+  <g>
+    <rect x="30" y="40" width="90" height="30" rx="8" class="box"/><text x="75" y="60" text-anchor="middle" class="t">iPhone</text>
+    <rect x="135" y="40" width="90" height="30" rx="8" class="box"/><text x="180" y="60" text-anchor="middle" class="t">Android</text>
+    <rect x="240" y="40" width="90" height="30" rx="8" class="box"/><text x="285" y="60" text-anchor="middle" class="t">Web</text>
+  </g>
+
+  <path d="M180 80 L180 108" stroke="#2B3A40" stroke-width="2" marker-end="url(#a)"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#2B3A40"/></marker></defs>
+
+  <rect x="14" y="110" width="332" height="196" rx="14" fill="#fff" stroke="#E8A200" stroke-width="2.4"/>
+  <text x="26" y="132" class="th">Cloudflare (rented, pay for use)</text>
+  <rect x="28" y="146" width="96" height="64" rx="8" class="box"/><text x="76" y="168" text-anchor="middle" class="tb">App files</text><text x="76" y="184" text-anchor="middle" class="ts">Pages</text><text x="76" y="198" text-anchor="middle" class="ts">free tier</text>
+  <rect x="132" y="146" width="96" height="64" rx="8" class="box"/><text x="180" y="168" text-anchor="middle" class="tb">Map + road</text><text x="180" y="184" text-anchor="middle" class="tb">packs</text><text x="180" y="200" text-anchor="middle" class="ts">R2 storage</text>
+  <rect x="236" y="146" width="96" height="64" rx="8" class="box"/><text x="284" y="168" text-anchor="middle" class="tb">Voice files</text><text x="284" y="184" text-anchor="middle" class="ts">R2 storage</text><text x="284" y="198" text-anchor="middle" class="ts">no download fee</text>
+  <rect x="28" y="224" width="152" height="68" rx="8" class="box"/><text x="104" y="246" text-anchor="middle" class="tb">Licence service</text><text x="104" y="262" text-anchor="middle" class="ts">Worker (a tiny program)</text><text x="104" y="278" text-anchor="middle" class="ts">checks who is Pro</text>
+  <rect x="196" y="224" width="136" height="68" rx="8" class="box"/><text x="264" y="246" text-anchor="middle" class="tb">Little database</text><text x="264" y="262" text-anchor="middle" class="ts">D1: licences,</text><text x="264" y="278" text-anchor="middle" class="ts">waitlist, receipts</text>
+  <path d="M180 258 L196 258" stroke="#2B3A40" stroke-width="2"/>
+
+  <path d="M104 306 L104 336" stroke="#2B3A40" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M264 306 L264 336" stroke="#2B3A40" stroke-width="2" marker-end="url(#a)" stroke-dasharray="4 4"/>
+
+  <rect x="14" y="338" width="160" height="120" rx="14" fill="#fff" stroke="#0E7C7B" stroke-width="2.4"/>
+  <text x="26" y="360" class="th">One small server</text>
+  <text x="26" y="380" class="t">Valhalla router</text><text x="26" y="396" class="ts">turn-by-turn routes</text>
+  <text x="26" y="418" class="t">Nightly road builder</text><text x="26" y="434" class="ts">makes the road packs</text>
+  <text x="26" y="450" class="ts">about 6 to 20 euro a month</text>
+
+  <rect x="186" y="338" width="160" height="120" rx="14" fill="#fff" stroke="#6A5A8A" stroke-width="2.4"/>
+  <text x="198" y="360" class="th">Payments</text>
+  <text x="198" y="380" class="t">Apple in-app</text><text x="198" y="398" class="t">Google Play</text><text x="198" y="416" class="t">Card on the web</text>
+  <text x="198" y="440" class="ts">All tell the licence service</text><text x="198" y="454" class="ts">who paid</text>
+
+  <rect x="14" y="478" width="332" height="62" rx="14" fill="#FBE4DF" stroke="#C8402B" stroke-width="2"/>
+  <text x="26" y="500" class="th">Watchers</text>
+  <text x="26" y="520" class="t">Uptime pings, error reports, nightly backup</text>
+  <text x="26" y="534" class="ts">text me when something is down</text>
+
+  <rect x="14" y="556" width="332" height="74" rx="14" fill="#E2E9E6" stroke="#B9C5C0" stroke-width="1.6"/>
+  <text x="26" y="578" class="th">Still borrowed</text>
+  <text x="26" y="598" class="t">Place search (Photon) for now, then own</text>
+  <text x="26" y="614" class="t">Map style and fonts from OpenFreeMap or own</text>
+  <text x="26" y="628" class="ts">Own them one at a time, only if they hurt</text>
+</svg>
+<figcaption>The whole backend on one page. Solid arrows are used every ride. Dashed means only when a licence is checked.</figcaption>
+</figure>
+
+<h3>Why this shape</h3>
+<ul>
+  <li><b>Static files are nearly free.</b> <span class="badge b-ok">checked</span> Cloudflare R2 charges nothing for downloads. Storage is 10 GB free, then $0.015 per GB a month.</li>
+  <li><b>Maps in one file.</b> <span class="badge b-ok">checked</span> The PMTiles format is a single file on plain storage that the phone reads in small pieces. A city or region is about 100 MB; the whole planet is roughly 60 to 120 GB depending on the build.</li>
+  <li><b>Licences are tiny.</b> <span class="badge b-ok">checked</span> Workers are free for 100,000 requests a day, then $0.30 per million. D1 gives 5 GB free.</li>
+  <li><b>Only routing needs a real machine.</b> It is the one piece that cannot be a static file.</li>
+</ul>
+
+<h2>3. What happens on a drive</h2>
+<p>The goal: after the first setup, a ride works with no signal. Servers are only touched at the edges.</p>
+
+<figure>
+<svg viewBox="0 0 360 520" role="img" aria-label="Five steps from opening the app to driving offline">
+  <path d="M40 30 L40 490" stroke="#2B3A40" stroke-width="4" stroke-linecap="round"/>
+  <g>
+    <circle cx="40" cy="40" r="15" fill="#0E7C7B" class="dot"/><text x="40" y="45" text-anchor="middle" class="tb w">1</text>
+    <text x="68" y="36" class="th">Open the app</text><text x="68" y="54" class="t">Files come from the phone's own copy.</text><text x="68" y="70" class="ts">Updates download quietly in the background.</text>
+
+    <circle cx="40" cy="140" r="15" fill="#0E7C7B" class="dot"/><text x="40" y="145" text-anchor="middle" class="tb w">2</text>
+    <text x="68" y="136" class="th">Pick a rally or road</text><text x="68" y="154" class="t">Phone downloads that area's road pack</text><text x="68" y="170" class="ts">once, from storage, and keeps it.</text>
+
+    <circle cx="40" cy="240" r="15" fill="#E8A200" class="dot"/><text x="40" y="245" text-anchor="middle" class="tb w">3</text>
+    <text x="68" y="236" class="th">Plan a route</text><text x="68" y="254" class="t">Asks our router once. Gets the line</text><text x="68" y="270" class="ts">back and saves it. Only step needing the server.</text>
+
+    <circle cx="40" cy="340" r="15" fill="#6A5A8A" class="dot"/><text x="40" y="345" text-anchor="middle" class="tb w">4</text>
+    <text x="68" y="336" class="th">Check the licence</text><text x="68" y="354" class="t">Licence service answers Pro or free.</text><text x="68" y="370" class="ts">Phone remembers it for 14 days.</text>
+
+    <circle cx="40" cy="440" r="15" fill="#2F8F4E" class="dot"/><text x="40" y="445" text-anchor="middle" class="tb w">5</text>
+    <text x="68" y="436" class="th">Drive</text><text x="68" y="454" class="t">Pacenotes, voice, map: all on the phone.</text><text x="68" y="470" class="ts">No signal needed. Nothing to go down.</text>
+  </g>
+</svg>
+<figcaption>Design rule: if a server dies mid-ride, the driver must not notice.</figcaption>
+</figure>
+<p class="small">The 14 day grace period in step 4 is a design choice, not a measured number. Pick it with the Pro offer.</p>
+
+<h2>4. Borrow, rent or build</h2>
+<table>
+<tr><th>Piece</th><th>Today</th><th>Plan</th></tr>
+<tr><td>Road shapes</td><td>Public Overpass</td><td>Build road packs nightly from a regional OSM extract, store on R2. Avoids running Overpass at all.</td></tr>
+<tr><td>Routing</td><td>Public Valhalla demo</td><td>Own Valhalla on one small server.</td></tr>
+<tr><td>Map pictures</td><td>OpenFreeMap</td><td>Keep. Move to own PMTiles only if it fails.</td></tr>
+<tr><td>Place search</td><td>Photon</td><td>Keep. Cache results. Own later.</td></tr>
+<tr><td>Voice model</td><td>Hugging Face</td><td>Copy to R2 so downloads are ours.</td></tr>
+<tr><td>App hosting</td><td>GitHub Pages</td><td>Move to Cloudflare Pages before charging.</td></tr>
+<tr><td>Licences</td><td>none</td><td>Worker plus D1.</td></tr>
+<tr><td>Payments</td><td>none</td><td>Store billing in apps, card checkout on the web.</td></tr>
+</table>
+
+<h2>5. What it costs</h2>
+<figure>
+<svg viewBox="0 0 360 290" role="img" aria-label="Bar chart of estimated monthly cost by number of users">
+  <g class="t">
+    <text x="14" y="42">100 users</text><rect x="100" y="26" width="26" height="22" rx="4" fill="#2F8F4E"/><text x="134" y="42">about $10</text>
+    <text x="14" y="102">1,000</text><rect x="100" y="86" width="52" height="22" rx="4" fill="#0E7C7B"/><text x="160" y="102">about $25</text>
+    <text x="14" y="162">10,000</text><rect x="100" y="146" width="130" height="22" rx="4" fill="#E8A200"/><text x="238" y="162">about $70</text>
+    <text x="14" y="222">100,000</text><rect x="100" y="206" width="236" height="22" rx="4" fill="#C8402B"/><text x="200" y="222" class="w" style="fill:#fff">$350 or more</text>
+  </g>
+  <text x="14" y="262" class="ts">Per month, USD. Rough planning numbers.</text>
+  <text x="14" y="278" class="ts">Mostly the router machine, then request fees.</text>
+</svg>
+<figcaption>Estimates built from the vendor prices below, not quotes. They exclude your own time and the yearly Apple and Google developer fees.</figcaption>
+</figure>
+
+<table>
+<tr><th>Item</th><th>Price</th><th></th></tr>
+<tr><td>Cloudflare R2 storage</td><td>10 GB free, then $0.015 per GB-month. No download fee.</td><td><span class="badge b-ok">checked</span></td></tr>
+<tr><td>Cloudflare Workers</td><td>100,000 requests a day free, then $0.30 per million</td><td><span class="badge b-ok">checked</span></td></tr>
+<tr><td>Small server (Hetzner)</td><td>Entry plan roughly 4 to 6 euro a month, bigger plans about 12 euro and up. Hetzner raised prices on 15 June 2026 and sources disagree on exact amounts. IPv4 address is about 0.50 euro extra. About 20 TB of traffic included.</td><td><span class="badge b-warn">varies</span></td></tr>
+<tr><td>Valhalla disk and memory for North America</td><td>Not sized yet. Plan for an 8 GB machine with 160 GB disk and test.</td><td><span class="badge b-unk">not checked</span></td></tr>
+<tr><td>Apple developer account</td><td>About $99 a year</td><td><span class="badge b-unk">not checked</span></td></tr>
+<tr><td>Google Play developer account</td><td>About $25, once</td><td><span class="badge b-unk">not checked</span></td></tr>
+<tr><td>Domain name</td><td>About $12 a year</td><td><span class="badge b-unk">not checked</span></td></tr>
+</table>
+
+<h2>6. Where the money goes</h2>
+<p>You set $49 a year, and $125 lifetime in a launch window. Stores take a cut. A web card checkout takes less but only works where the app is allowed to send people to the web.</p>
+<figure>
+<svg viewBox="0 0 360 250" role="img" aria-label="Amount kept from 49 dollar yearly and 125 dollar lifetime through store billing versus web checkout">
+  <text x="14" y="22" class="th">$49 a year</text>
+  <rect x="14" y="32" width="332" height="26" rx="5" fill="#E2E9E6"/>
+  <rect x="14" y="32" width="282" height="26" rx="5" fill="#2F8F4E"/><text x="22" y="50" class="tb w" style="fill:#fff">Store billing: you keep $41.65</text>
+  <rect x="296" y="32" width="50" height="26" rx="0" fill="#C8402B"/>
+  <rect x="14" y="64" width="320" height="26" rx="5" fill="#0E7C7B"/><text x="22" y="82" class="tb" style="fill:#fff">Web card: you keep about $47.28</text>
+
+  <text x="14" y="130" class="th">$125 lifetime</text>
+  <rect x="14" y="140" width="332" height="26" rx="5" fill="#E2E9E6"/>
+  <rect x="14" y="140" width="282" height="26" rx="5" fill="#2F8F4E"/><text x="22" y="158" class="tb" style="fill:#fff">Store billing: you keep $106.25</text>
+  <rect x="296" y="140" width="50" height="26" fill="#C8402B"/>
+  <rect x="14" y="172" width="322" height="26" rx="5" fill="#0E7C7B"/><text x="22" y="190" class="tb" style="fill:#fff">Web card: you keep about $121.07</text>
+
+  <text x="14" y="226" class="ts">Red end = store's 15%. Web figure uses a typical card fee of</text>
+  <text x="14" y="242" class="ts">2.9% plus 30 cents, which is not checked against Stripe today.</text>
+</svg>
+<figcaption>Per sale, before tax.</figcaption>
+</figure>
+<ul>
+  <li><span class="badge b-ok">checked</span> Apple's Small Business Program lowers the commission to 15% for developers earning under $1 million a year. You must enrol.</li>
+  <li><span class="badge b-ok">checked</span> Google Play charges 15% on auto-renewing subscriptions from day one.</li>
+  <li><span class="badge b-unk">not checked</span> Whether the iPhone app may link to web checkout, and RevenueCat pricing, need a look at the current Apple rules and their price page before building billing.</li>
+  <li><span class="badge b-unk">not checked</span> Sales tax and VAT on digital sales. Stores collect it for in-app sales. A web checkout needs a provider that handles it.</li>
+</ul>
+
+<h2>7. Build order</h2>
+<div class="stage s0"><h3>Stage 0 · Now</h3>
+<ul><li>Ship the Plain English call style and the bend sketch.</li><li>Keep retry and fallback on Overpass so a bad mirror does not stop a route.</li><li>Write the Pro offer page and a waitlist form. No payments yet.</li></ul></div>
+<div class="stage s1"><h3>Stage 1 · Before launch</h3>
+<ul><li>Get a domain name. Put the app on Cloudflare Pages.</li><li>Start the small router server. Test it with real rally stages.</li><li>Build the nightly road packs for your first countries. Store on R2. App reads them first and uses Overpass only as backup.</li><li>Copy the voice model to R2.</li><li>Add uptime pings and error reports.</li></ul></div>
+<div class="stage s2"><h3>Stage 2 · Launch</h3>
+<ul><li>Licence service and little database.</li><li>Store billing on iPhone and Android, card checkout on the web.</li><li>Privacy page and terms, read by a lawyer. You are in Canada, so PIPEDA applies, plus GDPR if you sell to Europe.</li><li>Credit OpenStreetMap on screen and in the store listing. Its licence requires it.</li><li>Nightly backup of the database to a second place.</li></ul></div>
+<div class="stage s3"><h3>Stage 3 · Growth</h3>
+<ul><li>Convoy: group ride location sharing with live connections. Needs a design pass and a cost check first.</li><li>Cloud sync of saved routes.</li><li>Second router machine in another region.</li><li>CarPlay and Android Auto. Apple and Google both gate this behind approval and the wait is not checked.</li></ul></div>
+
+<h2>8. When something breaks</h2>
+<figure>
+<svg viewBox="0 0 360 560" role="img" aria-label="Incident flowchart: alert, check app loads, check maps, check licences, then write what happened">
+  <defs><marker id="b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#2B3A40"/></marker></defs>
+  <g stroke="#2B3A40" stroke-width="2" fill="none" marker-end="url(#b)">
+    <path d="M180 56 L180 84"/><path d="M180 154 L180 188"/><path d="M180 262 L180 296"/><path d="M180 370 L180 404"/>
+    <path d="M250 120 L290 120 L290 150" /><path d="M250 228 L290 228 L290 258"/><path d="M250 336 L290 336 L290 366"/>
+  </g>
+  <rect x="80" y="14" width="200" height="42" rx="21" fill="#C8402B"/><text x="180" y="40" text-anchor="middle" class="tb" style="fill:#fff">Alert: text arrives</text>
+
+  <path d="M180 84 L250 120 L180 154 L110 120 Z" fill="#fff" stroke="#2B3A40" stroke-width="2"/><text x="180" y="124" text-anchor="middle" class="tb">App loads?</text>
+  <rect x="236" y="150" width="108" height="42" rx="8" class="box"/><text x="290" y="168" text-anchor="middle" class="tb">Roll back</text><text x="290" y="184" text-anchor="middle" class="ts">previous deploy</text>
+  <text x="196" y="178" class="ts">yes</text><text x="256" y="112" class="ts">no</text>
+
+  <path d="M180 188 L250 228 L180 262 L110 228 Z" fill="#fff" stroke="#2B3A40" stroke-width="2"/><text x="180" y="226" text-anchor="middle" class="tb">Routes and</text><text x="180" y="242" text-anchor="middle" class="tb">maps work?</text>
+  <rect x="236" y="258" width="108" height="42" rx="8" class="box"/><text x="290" y="276" text-anchor="middle" class="tb">Switch to</text><text x="290" y="292" text-anchor="middle" class="ts">backup source</text>
+  <text x="196" y="286" class="ts">yes</text><text x="256" y="220" class="ts">no</text>
+
+  <path d="M180 296 L250 336 L180 370 L110 336 Z" fill="#fff" stroke="#2B3A40" stroke-width="2"/><text x="180" y="334" text-anchor="middle" class="tb">Licence check</text><text x="180" y="350" text-anchor="middle" class="tb">works?</text>
+  <rect x="236" y="366" width="108" height="42" rx="8" class="box"/><text x="290" y="384" text-anchor="middle" class="tb">Phones keep</text><text x="290" y="400" text-anchor="middle" class="ts">saved licence</text>
+  <text x="196" y="394" class="ts">yes</text><text x="256" y="328" class="ts">no</text>
+
+  <rect x="60" y="410" width="240" height="56" rx="12" fill="#E2E9E6" stroke="#2B3A40" stroke-width="2"/>
+  <text x="180" y="434" text-anchor="middle" class="tb">Write what happened</text><text x="180" y="452" text-anchor="middle" class="ts">3 lines: cause, fix, how to stop it again</text>
+
+  <rect x="14" y="484" width="332" height="62" rx="10" fill="#FFF4D6" stroke="#E7C873"/>
+  <text x="26" y="506" class="tb">Why the 14 day saved licence matters</text>
+  <text x="26" y="524" class="ts">A licence outage must never lock a driver out mid-rally.</text>
+  <text x="26" y="538" class="ts">The phone trusts its last good answer.</text>
+</svg>
+<figcaption>Same flow every time, so a bad night does not need thinking.</figcaption>
+</figure>
+
+<h3>Routine jobs</h3>
+<table>
+<tr><th>Job</th><th>How often</th><th>How</th></tr>
+<tr><td>Publish an update</td><td>When ready</td><td><code>push-update.bat</code>, then check the live <code>version.txt</code>.</td></tr>
+<tr><td>Roll back</td><td>If the update is bad</td><td>Redeploy the last good version in Cloudflare Pages. Under 5 minutes.</td></tr>
+<tr><td>Rebuild road packs</td><td>Nightly, automatic</td><td>Server job. Keeps yesterday's pack until the new one passes a check.</td></tr>
+<tr><td>Backup database</td><td>Nightly</td><td>Copy to a second storage place. Test a restore once a quarter.</td></tr>
+<tr><td>Update server</td><td>Monthly</td><td>Security updates, then restart during a quiet hour.</td></tr>
+<tr><td>Check costs</td><td>Monthly</td><td>Set a spending alert at 2 times the usual bill.</td></tr>
+</table>
+
+<h3>What the watchers show</h3>
+<div class="tiles">
+  <div class="tile"><span class="small">App up</span><b>99.9%</b><span class="small">goal</span></div>
+  <div class="tile"><span class="small">Route answer</span><b>under 3 s</b><span class="small">goal</span></div>
+  <div class="tile"><span class="small">Errors a day</span><b>watch trend</b><span class="small">alert on a spike</span></div>
+  <div class="tile"><span class="small">Monthly bill</span><b>alert at 2×</b><span class="small">of normal</span></div>
+</div>
+<p class="small">These are targets to aim at, not things measured yet.</p>
+
+<h2>9. Keeping it safe</h2>
+<ul>
+  <li>HTTPS only. The licence service accepts only requests signed by the stores or the payment provider.</li>
+  <li>Secret keys live in the host's secret store. Never in the app, never in the repo.</li>
+  <li>The router server: only the Cloudflare address can reach it. Login by key, no passwords.</li>
+  <li>Collect as little as possible: a licence id and a receipt. No location history on our side.</li>
+  <li>Rate limits on every public address, so one bad actor cannot run up the bill.</li>
+  <li><b>Not enforced today:</b> the page security headers file does not apply on GitHub Pages. Cloudflare Pages does apply it, so moving fixes this too.</li>
+</ul>
+
+<h2>10. What is proven and what is not</h2>
+<table>
+<tr><th>Claim</th><th>Status</th></tr>
+<tr><td>Public Overpass is not meant for a commercial app</td><td><span class="badge b-ok">checked</span></td></tr>
+<tr><td>R2, Workers, D1 free tiers and prices</td><td><span class="badge b-ok">checked</span></td></tr>
+<tr><td>PMTiles works from plain storage</td><td><span class="badge b-ok">checked</span></td></tr>
+<tr><td>Apple 15% (under $1M) and Google 15% subscriptions</td><td><span class="badge b-ok">checked</span></td></tr>
+<tr><td>Exact Hetzner prices after June 2026</td><td><span class="badge b-warn">varies</span></td></tr>
+<tr><td>Nightly road packs replace Overpass</td><td><span class="badge b-unk">design idea, not built</span></td></tr>
+<tr><td>Valhalla machine size for North America</td><td><span class="badge b-unk">not checked</span></td></tr>
+<tr><td>Stripe, RevenueCat, tax, app review times, CarPlay approval, legal text</td><td><span class="badge b-unk">not checked</span></td></tr>
+<tr><td>Cost ladder at 10,000 and 100,000 users</td><td><span class="badge b-unk">rough estimate</span></td></tr>
+</table>
+
+<footer>
+<p>Sources read on 25 Nov 2026: Cloudflare pricing pages, the Overpass usage policy, Apple and RevenueCat notes on the Small Business Program, Hetzner price reports (Northflank, Findstack, Bitdoze), and the Protomaps docs.</p>
+</footer>
+
+</main>
+</body>
+</html>

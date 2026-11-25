@@ -247,8 +247,15 @@ export function SettingsDialog() {
         </Section>
 
         <Section title="What the voice says">
-          <Segmented<DialectId> label="Call style" value={st.dialect} onChange={(dialect) => set({ dialect })} options={DIALECTS.map((d) => ({ value: d.id, label: d.id === 'plain' ? 'Plain English' : d.id === 'rally' ? 'Co-driver' : 'Reversed' }))} />
+          <Segmented<DialectId> label="Call style" value={st.dialect} onChange={(dialect) => set({ dialect })} options={DIALECTS.map((d) => ({ value: d.id, label: d.id === 'plain' ? 'Plain English' : d.id === 'rally' ? 'Numbers 1-6' : 'Numbers 6-1' }))} />
           <p className="text-sm text-mute">{DIALECTS.find((d) => d.id === st.dialect)?.blurb}</p>
+          {st.dialect !== 'plain' && (
+            <p className="rounded-xl bg-bg p-3 text-sm">
+              {st.dialect === 'rally'
+                ? 'How to read it: "Right 3 into left 3" is a medium right, then straight into a medium left. 1 and 2 are sharp, 3 and 4 are medium, 5 is easy, 6 is a slight bend. Plain English is the easy start; switch back any time.'
+                : 'How to read it: "Right 3 into left 3" is a medium right, then straight into a medium left. 6 and 5 are sharp, 4 and 3 are medium, 2 is easy, 1 is a slight bend. Plain English is the easy start; switch back any time.'}
+            </p>
+          )}
         </Section>
 
         <Section title="What the screen shows">

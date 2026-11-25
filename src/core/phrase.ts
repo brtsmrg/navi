@@ -12,8 +12,8 @@ export interface Dialect {
 }
 
 export const DIALECTS: Dialect[] = [
-  { id: 'rally', name: 'Co-driver', blurb: 'Left 4 long, 100, right 3. 1 = tightest, 6 = flat.' },
-  { id: 'rally-reverse', name: 'Co-driver (reversed)', blurb: 'Same calls, 6 = tightest, 1 = flat.' },
+  { id: 'rally', name: 'Numbers 1-6', blurb: 'Rally style, like a real co-driver: Left 4 long, 100, right 3. The number is how sharp: 1 is a hairpin, 6 is a slight bend. "Into" means the next bend follows with no gap.' },
+  { id: 'rally-reverse', name: 'Numbers 6-1 (reversed)', blurb: 'Same calls, but 6 is the tightest bend and 1 is a slight bend.' },
   { id: 'plain', name: 'Plain English', blurb: 'Sharp left, then in 100 metres, easy right.' },
 ];
 

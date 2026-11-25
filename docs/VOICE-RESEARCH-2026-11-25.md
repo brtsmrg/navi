@@ -4,7 +4,7 @@ Claude cannot hear audio. Everything below is from reading sources. Which voice 
 
 ## Read this first
 
-- **Not done: video research.** No co-driver videos were transcribed. Only web pages were read. The video part is still open.
+- **Video research: 5 of 6 videos done (captions read, 25 Nov, 9:10 AM ET).** One video was refused by YouTube (error 429, too many requests). Findings are in the section "What real co-drivers do (from 5 videos)".
 - **Not tested:** none of the fixes below were run on your PC voice. They are the most likely causes and fixes, not proven ones.
 
 ## 1. "What is he saying at the end?" is probably the engine, not the wording
@@ -59,7 +59,21 @@ Navigation research (TravTek and later work) says short calls, little chatter, a
 1. Add the tail trim and 3-take check to the home voice, then re-render "right three into left three" and listen.
 2. Pick W1 or W2 as the default for new users.
 3. Optional: an A/B of Qwen3-TTS against Chatterbox on 10 calls.
-4. Video research: still open.
+4. Video research: done for 5 of 6 videos. The sixth (xh1x4KENO2Q) was refused by YouTube and can be retried later.
+
+## What real co-drivers do (from 5 videos)
+
+Source: the auto-captions of five rally co-driver videos, read in full. Captions are machine text, so some words are wrong.
+
+- **Scale:** 1 is the tightest corner, 6 is nearly flat out. "Plus" and "minus" fine-tune it (four plus is a little faster than four).
+- **Link words:** "into" means no gap between two corners. "and" means a tiny straight. "then" means a slightly longer one. A plain number such as "100" is a distance in metres. This matches the Rally dialect.
+- **Order:** the call is read as a short string, for example "five right five into left six", "left two plus half long", "four right 100 twist".
+- **Emphasis (one co-driver, direct quote of the idea):** tone and loudness matter. A slow or dangerous call (a three, a two, a brake, a slippy, "tightens") is called loudly. A fast corner that the car runs straight through is called flat, on purpose.
+- **Repeats:** an important call can be repeated ("say again").
+- **Timing:** the co-driver stays one or two corners ahead, never more. Slow corners are called earlier so the driver has time to brake.
+- **Extras heard often:** over crest, caution, keep in, don't cut, long, short, twist, narrows, jump, bridge.
+
+**What this means for Navi:** calls should be short strings with the number words as above, with clearly louder delivery for corners 1 to 3 and for hazards, and flatter delivery for 5 and 6. Delivery loudness is not built yet; the home voice only varies by sample, not per call.
 
 ## Sources
 
