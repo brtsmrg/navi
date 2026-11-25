@@ -106,6 +106,21 @@ export function parseOverpass(json: unknown): RoadWay[] {
   return out;
 }
 
+/** The public servers refuse a crowd: nine squares at once get four refusals. Two at a time, nearest first, is quicker overall. */
+const MAX_PARALLEL = 2;
+let running = 0;
+const waiting: (() => void)[] = [];
+async function inSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (running >= MAX_PARALLEL) await new Promise<void>((res) => waiting.push(res));
+  running++;
+  try {
+    return await fn();
+  } finally {
+    running--;
+    waiting.shift()?.();
+  }
+}
+
 const cache = new Map<string, RoadWay[]>();
 const inflight = new Map<string, Promise<RoadWay[]>>();
 
@@ -163,8 +178,12 @@ function oneRound(query: string, timeoutMs: number, outer?: AbortSignal): Promis
           clearTimeout(timer);
           if (done) return;
           lastErr = e;
-          coolUntil.set(url, Date.now() + COOLDOWN_MS);
-          if (lastGood === url) lastGood = undefined;
+          // a refusal for asking too fast (429, or a blocked reply with no headers) says the server is busy for a moment, not down
+          const tooFast = e instanceof TypeError || /\(429\)/.test(e instanceof Error ? e.message : '');
+          if (!tooFast) {
+            coolUntil.set(url, Date.now() + COOLDOWN_MS);
+            if (lastGood === url) lastGood = undefined;
+          }
           failed++;
           if (launched < order.length) launch();
           else if (failed >= order.length) finish(() => reject(lastErr instanceof Error ? lastErr : new Error('Road data is not reachable')));
@@ -199,7 +218,7 @@ function fetchKeyed(k: string, query: string, timeoutMs: number, outer?: AbortSi
   if (hit) return Promise.resolve(hit);
   const running = inflight.get(k);
   if (running) return running;
-  const p = fetchRaw(query, timeoutMs, outer)
+  const p = inSlot(() => fetchRaw(query, timeoutMs, outer))
     .then((ways) => {
       cache.set(k, ways);
       return ways;
@@ -277,7 +296,7 @@ export async function fetchHazardTile(c: Cell, outer?: AbortSignal): Promise<Haz
   const k = cellKey(c);
   const hit = hazardCache.get(k);
   if (hit) return hit;
-  const list = parseHazards(await fetchJson(buildHazardQuery(c), 28000, outer));
+  const list = parseHazards(await inSlot(() => fetchJson(buildHazardQuery(c), 28000, outer)));
   hazardCache.set(k, list);
   return list;
 }
